@@ -16,7 +16,25 @@ function App() {
   if (view === 'splash') return <SplashScreen />
   if (view === 'registration') return <RegistrationPortal onLogin={() => setView('login')} />
   if (view === 'dashboard') return <MerchantDashboard merchantName={merchantName} onSignOut={() => setView('login')} />
-  return <LoginPortal onRegister={() => setView('registration')} onLogin={(name) => { setMerchantName(name); setView('dashboard') }} />
+  if (view === 'welcome') return <WelcomeTransition merchantName={merchantName} onComplete={() => setView('dashboard')} />
+  return <LoginPortal onRegister={() => setView('registration')} onLogin={(name) => { setMerchantName(name); setView('welcome') }} />
+}
+
+function WelcomeTransition({ merchantName, onComplete }) {
+  useEffect(() => {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const timer = window.setTimeout(onComplete, reducedMotion ? 50 : 1900)
+    return () => window.clearTimeout(timer)
+  }, [onComplete])
+
+  return <main className="welcome-transition" aria-label="Welcome to your Foodie dashboard">
+    <div className="welcome-glow welcome-glow-red" /><div className="welcome-glow welcome-glow-yellow" />
+    <div className="welcome-transition-content"><div className="welcome-transition-mark"><img src={foodieLogo} alt="" /></div>
+      <span className="welcome-transition-kicker">FOODIE MERCHANT</span><h1>Welcome back<span>.</span></h1>
+      <p>{merchantName ? `Let's get your workspace ready, ${merchantName}.` : 'Let’s get your workspace ready.'}</p>
+      <div className="welcome-progress"><i /></div>
+    </div>
+  </main>
 }
 
 function Brand({ light = false }) {
@@ -70,18 +88,45 @@ function LoginPortal({ onRegister, onLogin }) {
         </form>
         <div className="login-divider"><span>NEW TO FOODIE?</span></div>
         <button className="register-cta" type="button" onClick={onRegister}>Register your restaurant <span aria-hidden="true">↗</span></button>
-        <p className="demo-note">Demo portal: sign in with any non-empty account ID and password. This does not verify credentials or connect to a backend.</p>
       </section>
     </section>
   </main>
 }
 
 function MerchantDashboard({ merchantName, onSignOut }) {
-  return <main className="dashboard-page"><header className="topbar"><Brand /><button className="login-link" type="button" onClick={onSignOut}>Sign out</button></header>
-    <section className="dashboard-content"><span className="eyebrow"><span className="eyebrow-dot" /> MERCHANT WORKSPACE</span><h1>GOOD TO SEE YOU,<br /><span>{merchantName || 'MERCHANT'}.</span></h1><p className="dashboard-intro">Your Foodie merchant workspace is ready for its next order.</p>
-      <div className="demo-banner"><strong>DEMO DASHBOARD</strong><span>This is a frontend preview. Merchant data and authentication are not connected to a backend yet.</span></div>
-      <div className="dashboard-grid"><article><span>01 / ORDERS</span><b>Orders</b><p>New orders and active deliveries will appear here.</p><i>→</i></article><article><span>02 / MENU</span><b>Your menu</b><p>Keep dishes, prices, and availability up to date.</p><i>→</i></article><article><span>03 / INSIGHTS</span><b>Business insights</b><p>See how your restaurant is growing with Foodie.</p><i>→</i></article></div>
-    </section></main>
+  const [active, setActive] = useState('Home')
+  const [chartMetric, setChartMetric] = useState('Sales')
+  const [dateRange, setDateRange] = useState('Last 7 days')
+  const navItems = ['Home', 'Orders', 'Menu', 'Wallet', 'Delivery', 'Reports', 'Payments', 'Marketing', 'Help']
+  const iconMap = { Home: '⌂', Orders: '▤', Menu: '☷', Wallet: '◉', Delivery: '↗', Reports: '▥', Payments: '＄', Marketing: '✳', Help: '?' }
+
+  return <main className="dashboard-shell">
+    <aside className="dashboard-sidebar">
+      <Brand light />
+      <span className="sidebar-caption">WORKSPACE</span>
+      <nav className="dashboard-nav" aria-label="Merchant dashboard">
+        {navItems.map((item) => <button key={item} type="button" className={active === item ? 'active' : ''} onClick={() => setActive(item)}><span className="nav-icon" aria-hidden="true">{iconMap[item]}</span>{item}{item === 'Orders' && <i className="nav-indicator" />}</button>)}
+      </nav>
+      <div className="sidebar-bottom"><button type="button" className={active === 'Settings' ? 'active' : ''} onClick={() => setActive('Settings')}><span className="nav-icon">⚙</span>Settings</button><button type="button" onClick={onSignOut}><span className="nav-icon">↪</span>Log Out</button><div className="sidebar-profile"><span className="profile-avatar">{(merchantName || 'M').slice(0, 1).toUpperCase()}</span><span><b>{merchantName || 'Merchant'}</b><small>Merchant account</small></span><i>···</i></div></div>
+    </aside>
+    <section className="dashboard-main">
+      <header className="dashboard-topbar"><div className="breadcrumb">Workspace <span>/</span> {active}</div><div className="dashboard-top-actions"><button className="icon-button" aria-label="Notifications" type="button">♧<i /></button><span className="topbar-divider" /><span className="top-avatar">{(merchantName || 'M').slice(0, 1).toUpperCase()}</span></div></header>
+      {active === 'Home' ? <div className="dashboard-content">
+        <div className="dashboard-heading-row"><div><span className="dashboard-kicker">YOUR BUSINESS AT A GLANCE</span><h1>Good afternoon{merchantName ? `, ${merchantName}` : ''}<span>.</span></h1><p>Here’s what’s happening with your restaurant.</p></div><button className="date-select" type="button" onClick={() => setDateRange((range) => range === 'Last 7 days' ? 'Last 30 days' : 'Last 7 days')}><span>▦</span>{dateRange}<span className="date-chevron">⌄</span></button></div>
+        <div className="metric-grid">{[['Total Sales', '↗', 'red'], ['Total Orders', '▤', 'yellow'], ['Average Order Value', '◉', 'peach'], ['Total Customers', '♙', 'mint']].map(([label, icon, tone]) => <article className="metric-card" key={label}><div className="metric-top"><span>{label}</span><i className={`metric-icon ${tone}`}>{icon}</i></div><strong className="metric-empty">—</strong><small>Data will appear when available</small></article>)}</div>
+        <section className="dashboard-card sales-card"><div className="card-heading"><div><h2>Business performance</h2><p>Track your restaurant over time</p></div><div className="chart-toggles" role="group" aria-label="Chart metric">{['Sales', 'Orders', 'Average Order Value'].map((metric) => <button type="button" key={metric} className={chartMetric === metric ? 'selected' : ''} onClick={() => setChartMetric(metric)}>{metric}</button>)}</div></div><div className="chart-empty"><div className="chart-y-axis"><span>—</span><span>—</span><span>—</span><span>—</span></div><div className="chart-grid-lines"><i /><i /><i /><i /><div className="chart-empty-message"><span>⌁</span><b>No {chartMetric.toLowerCase()} data yet</b><small>Performance data will appear here once available.</small></div></div></div><div className="chart-x-axis"><span>Data unavailable</span></div></section>
+        <div className="insights-grid"><section className="dashboard-card insight-card"><div className="card-heading"><div><h2>Top Eats</h2><p>What customers are enjoying</p></div><span className="card-spark">✳</span></div><EmptyState title="Nothing to show yet" detail="Your popular picks will appear here." /></section>
+          <section className="dashboard-card insight-card"><div className="card-heading"><div><h2>Top Selling Items</h2><p>Your best performers</p></div><button type="button" className="subtle-link" onClick={() => setActive('Menu')}>View menu →</button></div><EmptyState title="No sales to rank yet" detail="Item performance will appear here." /></section>
+          <section className="dashboard-card insight-card"><div className="card-heading"><div><h2>Customers</h2><p>New and repeat visitors</p></div></div><div className="customer-legend"><span><i className="legend-new" />New customers</span><span><i className="legend-repeat" />Repeat customers</span></div><div className="customer-empty"><div className="donut-empty"><span>—</span></div><p>Customer insights will appear here when available.</p></div></section>
+          <section className="dashboard-card insight-card feedback-card"><div className="card-heading"><div><h2>Menu Item Feedback</h2><p>Hear what customers think</p></div><span className="feedback-stars">★★★★★</span></div><EmptyState title="No feedback yet" detail="Customer feedback will appear here." /></section>
+        </div>
+      </div> : <div className="dashboard-content section-content"><span className="dashboard-kicker">FOODIE MERCHANT WORKSPACE</span><h1>{active}<span>.</span></h1><p>Manage your {active.toLowerCase()} workspace here.</p><section className="dashboard-card section-empty"><EmptyState title={`${active} data will appear here`} detail="There’s nothing to show right now." /></section></div>}
+    </section>
+  </main>
+}
+
+function EmptyState({ title, detail }) {
+  return <div className="empty-state"><span className="empty-state-mark">⌁</span><b>{title}</b><p>{detail}</p></div>
 }
 
 function RegistrationPortal({ onLogin }) {
@@ -165,7 +210,7 @@ function RegistrationPortal({ onLogin }) {
     }
 
     setMessage(
-        'Demo form validated! Registration is not submitted or saved yet. Backend integration is required.'
+        'Your information is ready. Account services are not connected yet.'
     )
   }
 
@@ -513,4 +558,3 @@ function DocumentUpload({ title, preview, inputId, onChange }) {
 }
 
 export default App
-
