@@ -1,9 +1,36 @@
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import './App.css'
+import OrdersPage from './OrdersPage.jsx'
 
 const foodieLogo = 'https://res.cloudinary.com/g7u1tdxx/image/upload/v1792826258/Gemini_Generated_Image_v0q9c4v0q9c4v0q9.jpg'
 
+const iconPaths = {
+  home: <><path d="m3 10 9-7 9 7"/><path d="M5 9v11h14V9M9 20v-6h6v6"/></>,
+  orders: <><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h7M9 16h7"/></>,
+  menu: <><path d="M4 5h16M4 12h16M4 19h16"/></>,
+  wallet: <><rect x="3" y="5" width="18" height="15" rx="3"/><path d="M3 9h18M15 14h3M7 5V3h11"/></>,
+  delivery: <><circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/><path d="M9 17h5l3-7h-5l-2-3H6M14 10l2 7M4 12h4"/></>,
+  reports: <><path d="M4 20V10h4v10M10 20V4h4v16M16 20v-8h4v8M3 20h18"/></>,
+  payments: <><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3 10h18M7 15h4"/></>,
+  marketing: <><path d="m3 11 17-6v14L3 13zM6 14l2 6h4l-2-5M20 10l2-1M20 15l2 1"/></>,
+  help: <><circle cx="12" cy="12" r="9"/><path d="M9.7 9a2.4 2.4 0 1 1 4.3 1.5c-1.1 1.2-2 1.4-2 3M12 17h.01"/></>,
+  settings: <><circle cx="12" cy="12" r="3"/><path d="M19 13.5a7 7 0 0 0 0-3l2-1.5-2-3.5-2.4 1a7 7 0 0 0-2.6-1.5L13.5 3h-3L9 5a7 7 0 0 0-2.6 1.5L4 5.5 2 9l2 1.5a7 7 0 0 0 0 3L2 15l2 3.5 2.4-1A7 7 0 0 0 9 19l.5 2h3l.5-2a7 7 0 0 0 2.6-1.5l2.4 1L21 15z" transform="translate(1 0) scale(.92)"/></>,
+  logout: <><path d="M10 5H5v14h5M14 8l4 4-4 4M8 12h10"/></>,
+  notifications: <><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></>,
+  calendar: <><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M8 14h3v3H8z"/></>,
+  chevronDown: <><path d="m6 9 6 6 6-6"/></>,
+  trend: <><path d="M4 17 10 11l4 4 7-8M15 7h6v6"/></>,
+  customers: <><circle cx="9" cy="8" r="3.5"/><path d="M3 20v-1.5A5.5 5.5 0 0 1 8.5 13h1a5.5 5.5 0 0 1 5.5 5.5V20zM16 5.2a3.5 3.5 0 0 1 0 6.6M18 14a5 5 0 0 1 3 4.5V20"/></>,
+  coins: <><circle cx="9" cy="9" r="6"/><circle cx="15" cy="15" r="6"/><path d="M8 7h2M8 10h2M14 13h2M14 16h2"/></>,
+  chart: <><path d="M4 19V5M4 19h17M8 15l4-4 3 2 5-6"/></>,
+  sparkle: <><path d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/></>,
+  plate: <><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="5.5"/><path d="M3 4v6M5 4v6M4 10v10M20 4v7M20 11v9M18 4v7"/></>,
+  feedback: <><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></>,
+}
+function Icon({ name, size = 20, className = '' }) {
+  return <svg className={`ui-icon ${className}`} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">{iconPaths[name]}</svg>
+}
 function App() {
   const [view, setView] = useState('splash')
   const [merchantName, setMerchantName] = useState('')
@@ -97,36 +124,77 @@ function MerchantDashboard({ merchantName, onSignOut }) {
   const [active, setActive] = useState('Home')
   const [chartMetric, setChartMetric] = useState('Sales')
   const [dateRange, setDateRange] = useState('Last 7 days')
+  const [orders, setOrders] = useState([])
+  const [notifications, setNotifications] = useState([])
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+
+  useEffect(() => {
+    function onMerchantOrder(event) {
+      const order = event.detail?.order
+      if (!order?.id) return
+      setOrders((current) => [order, ...current.filter((item) => String(item.id) !== String(order.id))])
+      setNotifications((current) => [{ id: `${order.id}-${Date.now()}`, orderId: order.id, receivedAt: new Date().toISOString() }, ...current])
+      setNotificationsOpen(true)
+    }
+    window.addEventListener('foodie:merchant-order', onMerchantOrder)
+    return () => window.removeEventListener('foodie:merchant-order', onMerchantOrder)
+  }, [])
   const navItems = ['Home', 'Orders', 'Menu', 'Wallet', 'Delivery', 'Reports', 'Payments', 'Marketing', 'Help']
-  const iconMap = { Home: '⌂', Orders: '▤', Menu: '☷', Wallet: '◉', Delivery: '↗', Reports: '▥', Payments: '＄', Marketing: '✳', Help: '?' }
+  const iconMap = { Home: 'home', Orders: 'orders', Menu: 'menu', Wallet: 'wallet', Delivery: 'delivery', Reports: 'reports', Payments: 'payments', Marketing: 'marketing', Help: 'help' }
 
   return <main className="dashboard-shell">
     <aside className="dashboard-sidebar">
       <Brand light />
       <span className="sidebar-caption">WORKSPACE</span>
       <nav className="dashboard-nav" aria-label="Merchant dashboard">
-        {navItems.map((item) => <button key={item} type="button" className={active === item ? 'active' : ''} onClick={() => setActive(item)}><span className="nav-icon" aria-hidden="true">{iconMap[item]}</span>{item}{item === 'Orders' && <i className="nav-indicator" />}</button>)}
+        {navItems.map((item) => <button key={item} type="button" className={active === item ? 'active' : ''} onClick={() => setActive(item)}><span className="nav-icon"><Icon name={iconMap[item]} size={19} /></span>{item}{item === 'Orders' && <i className="nav-indicator" />}</button>)}
       </nav>
-      <div className="sidebar-bottom"><button type="button" className={active === 'Settings' ? 'active' : ''} onClick={() => setActive('Settings')}><span className="nav-icon">⚙</span>Settings</button><button type="button" onClick={onSignOut}><span className="nav-icon">↪</span>Log Out</button><div className="sidebar-profile"><span className="profile-avatar">{(merchantName || 'M').slice(0, 1).toUpperCase()}</span><span><b>{merchantName || 'Merchant'}</b><small>Merchant account</small></span><i>···</i></div></div>
+      <div className="sidebar-bottom"><button type="button" className={active === 'Settings' ? 'active' : ''} onClick={() => setActive('Settings')}><span className="nav-icon"><Icon name="settings" size={19} /></span>Settings</button><button type="button" onClick={onSignOut}><span className="nav-icon"><Icon name="logout" size={19} /></span>Log Out</button><div className="sidebar-profile"><span className="profile-avatar">{(merchantName || 'M').slice(0, 1).toUpperCase()}</span><span><b>{merchantName || 'Merchant'}</b><small>Merchant account</small></span><i>···</i></div></div>
     </aside>
     <section className="dashboard-main">
-      <header className="dashboard-topbar"><div className="breadcrumb">Workspace <span>/</span> {active}</div><div className="dashboard-top-actions"><button className="icon-button" aria-label="Notifications" type="button">♧<i /></button><span className="topbar-divider" /><span className="top-avatar">{(merchantName || 'M').slice(0, 1).toUpperCase()}</span></div></header>
+      <header className="dashboard-topbar"><div className="breadcrumb">Workspace <span>/</span> {active}</div><div className="dashboard-top-actions"><NotificationsMenu notifications={notifications} open={notificationsOpen} setOpen={setNotificationsOpen} onClear={() => setNotifications([])} onDismiss={(id) => setNotifications((current) => current.filter((item) => item.id !== id))} onSelect={() => setActive('Orders')} /><span className="topbar-divider" /><span className="top-avatar">{(merchantName || 'M').slice(0, 1).toUpperCase()}</span></div></header>
       {active === 'Home' ? <div className="dashboard-content">
-        <div className="dashboard-heading-row"><div><span className="dashboard-kicker">YOUR BUSINESS AT A GLANCE</span><h1>Good afternoon{merchantName ? `, ${merchantName}` : ''}<span>.</span></h1><p>Here’s what’s happening with your restaurant.</p></div><button className="date-select" type="button" onClick={() => setDateRange((range) => range === 'Last 7 days' ? 'Last 30 days' : 'Last 7 days')}><span>▦</span>{dateRange}<span className="date-chevron">⌄</span></button></div>
-        <div className="metric-grid">{[['Total Sales', '↗', 'red'], ['Total Orders', '▤', 'yellow'], ['Average Order Value', '◉', 'peach'], ['Total Customers', '♙', 'mint']].map(([label, icon, tone]) => <article className="metric-card" key={label}><div className="metric-top"><span>{label}</span><i className={`metric-icon ${tone}`}>{icon}</i></div><strong className="metric-empty">—</strong><small>Data will appear when available</small></article>)}</div>
-        <section className="dashboard-card sales-card"><div className="card-heading"><div><h2>Business performance</h2><p>Track your restaurant over time</p></div><div className="chart-toggles" role="group" aria-label="Chart metric">{['Sales', 'Orders', 'Average Order Value'].map((metric) => <button type="button" key={metric} className={chartMetric === metric ? 'selected' : ''} onClick={() => setChartMetric(metric)}>{metric}</button>)}</div></div><div className="chart-empty"><div className="chart-y-axis"><span>—</span><span>—</span><span>—</span><span>—</span></div><div className="chart-grid-lines"><i /><i /><i /><i /><div className="chart-empty-message"><span>⌁</span><b>No {chartMetric.toLowerCase()} data yet</b><small>Performance data will appear here once available.</small></div></div></div><div className="chart-x-axis"><span>Data unavailable</span></div></section>
-        <div className="insights-grid"><section className="dashboard-card insight-card"><div className="card-heading"><div><h2>Top Eats</h2><p>What customers are enjoying</p></div><span className="card-spark">✳</span></div><EmptyState title="Nothing to show yet" detail="Your popular picks will appear here." /></section>
-          <section className="dashboard-card insight-card"><div className="card-heading"><div><h2>Top Selling Items</h2><p>Your best performers</p></div><button type="button" className="subtle-link" onClick={() => setActive('Menu')}>View menu →</button></div><EmptyState title="No sales to rank yet" detail="Item performance will appear here." /></section>
+        <div className="dashboard-heading-row"><div><span className="dashboard-kicker">YOUR BUSINESS AT A GLANCE</span><h1>Good afternoon{merchantName ? `, ${merchantName}` : ''}<span>.</span></h1><p>Here’s what’s happening with your restaurant.</p></div><button className="date-select" type="button" onClick={() => setDateRange((range) => range === 'Last 7 days' ? 'Last 30 days' : 'Last 7 days')}><Icon name="calendar" size={16} />{dateRange}<Icon name="chevronDown" size={14} className="date-chevron" /></button></div>
+        <div className="metric-grid">{[['Total Sales', 'trend', 'red'], ['Total Orders', 'orders', 'yellow'], ['Average Order Value', 'coins', 'peach'], ['Total Customers', 'customers', 'mint']].map(([label, icon, tone]) => <article className="metric-card" key={label}><div className="metric-top"><span>{label}</span><i className={`metric-icon ${tone}`}><Icon name={icon} size={18} /></i></div><strong className="metric-empty">—</strong></article>)}</div>
+        <section className="dashboard-card sales-card"><div className="card-heading"><div><h2>Business performance</h2><p>Track your restaurant over time</p></div><div className="chart-toggles" role="group" aria-label="Chart metric">{['Sales', 'Orders', 'Average Order Value'].map((metric) => <button type="button" key={metric} className={chartMetric === metric ? 'selected' : ''} onClick={() => setChartMetric(metric)}>{metric}</button>)}</div></div><div className="chart-empty"><div className="chart-y-axis"><span>—</span><span>—</span><span>—</span><span>—</span></div><div className="chart-grid-lines"><i /><i /><i /><i /><div className="chart-empty-message"><span><Icon name="chart" size={20} /></span></div></div></div></section>
+        <div className="insights-grid"><section className="dashboard-card insight-card"><div className="card-heading"><div><h2>Top Eats</h2><p>What customers are enjoying</p></div><span className="card-spark"><Icon name="sparkle" size={19} /></span></div><EmptyState icon="plate" /></section>
+          <section className="dashboard-card insight-card"><div className="card-heading"><div><h2>Top Selling Items</h2><p>Your best performers</p></div><button type="button" className="subtle-link" onClick={() => setActive('Menu')}>View menu →</button></div><EmptyState icon="orders" /></section>
           <section className="dashboard-card insight-card"><div className="card-heading"><div><h2>Customers</h2><p>New and repeat visitors</p></div></div><div className="customer-legend"><span><i className="legend-new" />New customers</span><span><i className="legend-repeat" />Repeat customers</span></div><div className="customer-empty"><div className="donut-empty"><span>—</span></div><p>Customer insights will appear here when available.</p></div></section>
-          <section className="dashboard-card insight-card feedback-card"><div className="card-heading"><div><h2>Menu Item Feedback</h2><p>Hear what customers think</p></div><span className="feedback-stars">★★★★★</span></div><EmptyState title="No feedback yet" detail="Customer feedback will appear here." /></section>
+          <section className="dashboard-card insight-card feedback-card"><div className="card-heading"><div><h2>Menu Item Feedback</h2><p>Hear what customers think</p></div><span className="feedback-stars"><Icon name="feedback" size={17} /></span></div><EmptyState icon="feedback" /></section>
         </div>
-      </div> : <div className="dashboard-content section-content"><span className="dashboard-kicker">FOODIE MERCHANT WORKSPACE</span><h1>{active}<span>.</span></h1><p>Manage your {active.toLowerCase()} workspace here.</p><section className="dashboard-card section-empty"><EmptyState title={`${active} data will appear here`} detail="There’s nothing to show right now." /></section></div>}
+      </div> : active === 'Orders' ? <OrdersPage orders={orders} /> : <div className="dashboard-content section-content"><span className="dashboard-kicker">FOODIE MERCHANT WORKSPACE</span><h1>{active}<span>.</span></h1><section className="dashboard-card section-empty"><EmptyState /></section></div>}
     </section>
   </main>
 }
 
-function EmptyState({ title, detail }) {
-  return <div className="empty-state"><span className="empty-state-mark">⌁</span><b>{title}</b><p>{detail}</p></div>
+function NotificationsMenu({ notifications, open, setOpen, onClear, onDismiss, onSelect }) {
+  const menuRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    function closeOutside(event) {
+      if (!menuRef.current?.contains(event.target)) setOpen(false)
+    }
+    function closeOnEscape(event) {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('pointerdown', closeOutside)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [open, setOpen])
+
+  return <div className="notification-menu" ref={menuRef}>
+    <button className={`icon-button notification-trigger ${notifications.length ? 'has-notifications' : ''}`} aria-label={`Notifications${notifications.length ? `, ${notifications.length} new` : ''}`} aria-haspopup="dialog" aria-expanded={open} type="button" onClick={() => setOpen((value) => !value)}><Icon name="notifications" size={18} />{notifications.length > 0 && <span className="notification-count">{notifications.length > 99 ? '99+' : notifications.length}</span>}</button>
+    {open && <section className="notification-panel" role="dialog" aria-label="Notifications"><div className="notification-panel-heading"><div><strong>Notifications</strong><span>{notifications.length ? `${notifications.length} new order${notifications.length === 1 ? '' : 's'}` : 'You’re all caught up'}</span></div><button type="button" className="clear-notifications" onClick={onClear} disabled={!notifications.length}>Clear all</button></div>
+      {notifications.length ? <div className="notification-items">{notifications.map((notification) => <article className="notification-entry" key={notification.id}><button type="button" className="notification-item" onClick={() => { onSelect(); setOpen(false) }}><span className="notification-mark"><Icon name="orders" size={17} /></span><span className="notification-copy"><strong>New order received</strong><span>Order #{notification.orderId}</span><time>{new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date(notification.receivedAt))}</time></span></button><button type="button" className="dismiss-notification" aria-label={`Clear notification for order ${notification.orderId}`} onClick={() => onDismiss(notification.id)}>×</button></article>)}</div> : <div className="notifications-empty"><span className="notification-empty-mark"><Icon name="notifications" size={20} /></span><strong>No notifications</strong><p>New order alerts will appear here.</p></div>}
+    </section>}
+  </div>
+}
+function EmptyState({ icon = 'chart' }) {
+  return <div className="empty-state"><span className="empty-state-mark"><Icon name={icon} size={19} /></span></div>
 }
 
 function RegistrationPortal({ onLogin }) {
