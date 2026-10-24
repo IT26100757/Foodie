@@ -1,18 +1,15 @@
 # Orders integration boundary
 
-The uploaded Spring Boot backend currently has no order API or live event contract. The Orders page starts empty and never requests an invented endpoint.
+The uploaded Spring Boot backend currently has no order API or live event contract. The Orders page starts with an empty list and does not call an assumed endpoint.
 
-When the backend adapter receives an authenticated order for the signed-in merchant, dispatch this browser event:
+When the backend adapter receives an authenticated order for the signed-in merchant, publish it through the browser event boundary:
 
 ```js
 window.dispatchEvent(new CustomEvent('foodie:merchant-order', {
-  detail: { order: {
-    id: 'ORD-123', date: '2026-10-24', time: '18:42',
-    paymentType: 'Card', netPayment: 'LKR 2,450.00', status: 'New', items: [],
-  } },
+  detail: { order: authenticatedOrder },
 }))
 ```
 
-Map the backend's actual fields and statuses in that adapter; the UI assumes no endpoint or response format. The dashboard listens while the merchant is signed in, and the adapter must scope events to that merchant. `date` should be `YYYY-MM-DD` for date filtering.
+The order object should provide `id`, `date` (`YYYY-MM-DD`), `time`, `paymentType`, numeric `total`, `currency`, and `status`. To permit an additional charge, the order must also carry `customerAgreedToAdditionalCharges: true`. The editable amount is `additionalCharge`; the frontend derives `netTotal = total + additionalCharge`. Without strict customer agreement, the additional-charge input is disabled and the amount is excluded from net total. The current UI edit is held in frontend state only; wire it to a backend update contract once the team defines one.
 
-Incoming order events create notifications in the top bell menu. The merchant can open an alert to view Orders, dismiss one alert, or clear all. Sound controls are intentionally absent from Orders and can be added in Settings later.
+The dashboard scopes data to events emitted by the authenticated backend adapter. New orders appear in the bell menu and open the Orders page when selected. Sound is off until enabled in Settings. Once enabled, each incoming order plays a repeating Web Audio chime for 30 seconds; switching it off stops playback. The UI requests no OS notification permission.

@@ -2,6 +2,12 @@
 import { useEffect, useRef, useState } from 'react'
 import './App.css'
 import OrdersPage from './OrdersPage.jsx'
+import MenuPage from './MenuPage.jsx'
+import {
+  playOrderAlert,
+  prepareOrderAudio,
+  stopOrderAudio,
+} from './orderAudio.js'
 
 const foodieLogo = 'https://res.cloudinary.com/g7u1tdxx/image/upload/v1792826258/Gemini_Generated_Image_v0q9c4v0q9c4v0q9.jpg'
 
@@ -128,6 +134,9 @@ function MerchantDashboard({ merchantName, onSignOut }) {
   const [notifications, setNotifications] = useState([])
   const [notificationsOpen, setNotificationsOpen] = useState(false)
 
+const [orderSoundEnabled, setOrderSoundEnabled] = useState(false)
+const alertStopRef = useRef(null)
+
   useEffect(() => {
     function onMerchantOrder(event) {
       const order = event.detail?.order
@@ -135,10 +144,52 @@ function MerchantDashboard({ merchantName, onSignOut }) {
       setOrders((current) => [order, ...current.filter((item) => String(item.id) !== String(order.id))])
       setNotifications((current) => [{ id: `${order.id}-${Date.now()}`, orderId: order.id, receivedAt: new Date().toISOString() }, ...current])
       setNotificationsOpen(true)
+
+      if (orderSoundEnabled) {
+        alertStopRef.current?.()
+        alertStopRef.current = playOrderAlert(30000)
+      }
     }
+
     window.addEventListener('foodie:merchant-order', onMerchantOrder)
-    return () => window.removeEventListener('foodie:merchant-order', onMerchantOrder)
-  }, [])
+
+    return () => {
+      window.removeEventListener('foodie:merchant-order', onMerchantOrder)
+      alertStopRef.current?.()
+      alertStopRef.current = null
+      stopOrderAudio()
+    }
+  }, [orderSoundEnabled])
+
+  function handleOrderSoundChange(enabled) {
+    if (enabled && !prepareOrderAudio()) return
+
+    if (!enabled) {
+      alertStopRef.current?.()
+      alertStopRef.current = null
+    }
+
+    setOrderSoundEnabled(enabled)
+  }
+
+  function updateAdditionalCharge(orderId, value) {
+    setOrders((current) =>
+        current.map((order) => {
+          if (
+              String(order.id) !== String(orderId) ||
+              order.customerAgreedToAdditionalCharges !== true
+          ) {
+            return order
+          }
+
+          return {
+            ...order,
+            additionalCharge: Math.max(0, Number(value) || 0),
+          }
+        })
+    )
+  }
+
   const navItems = ['Home', 'Orders', 'Menu', 'Wallet', 'Delivery', 'Reports', 'Payments', 'Marketing', 'Help']
   const iconMap = { Home: 'home', Orders: 'orders', Menu: 'menu', Wallet: 'wallet', Delivery: 'delivery', Reports: 'reports', Payments: 'payments', Marketing: 'marketing', Help: 'help' }
 
@@ -162,11 +213,14 @@ function MerchantDashboard({ merchantName, onSignOut }) {
           <section className="dashboard-card insight-card"><div className="card-heading"><div><h2>Customers</h2><p>New and repeat visitors</p></div></div><div className="customer-legend"><span><i className="legend-new" />New customers</span><span><i className="legend-repeat" />Repeat customers</span></div><div className="customer-empty"><div className="donut-empty"><span>—</span></div><p>Customer insights will appear here when available.</p></div></section>
           <section className="dashboard-card insight-card feedback-card"><div className="card-heading"><div><h2>Menu Item Feedback</h2><p>Hear what customers think</p></div><span className="feedback-stars"><Icon name="feedback" size={17} /></span></div><EmptyState icon="feedback" /></section>
         </div>
-      </div> : active === 'Orders' ? <OrdersPage orders={orders} /> : <div className="dashboard-content section-content"><span className="dashboard-kicker">FOODIE MERCHANT WORKSPACE</span><h1>{active}<span>.</span></h1><section className="dashboard-card section-empty"><EmptyState /></section></div>}
+      </div> : active === 'Orders' ? <OrdersPage orders={orders} onAdditionalChargeChange={updateAdditionalCharge} /> : active === 'Menu' ? <MenuPage /> : active === 'Settings' ? <SettingsPage soundEnabled={orderSoundEnabled} onSoundChange={handleOrderSoundChange} /> : <div className="dashboard-content section-content"><span className="dashboard-kicker">FOODIE MERCHANT WORKSPACE</span><h1>{active}<span>.</span></h1><section className="dashboard-card section-empty"><EmptyState /></section></div>}
     </section>
   </main>
 }
 
+function SettingsPage({ soundEnabled, onSoundChange }) {
+  return <div className="dashboard-content section-content settings-content"><span className="dashboard-kicker">PREFERENCES</span><h1>Settings<span>.</span></h1><p className="settings-intro">Choose how you receive order updates.</p><section className="dashboard-card settings-card"><div className="settings-option"><span className="settings-option-icon"><Icon name="notifications" size={19} /></span><span className="settings-option-copy"><strong>New order sound</strong><small>Repeat a notification chime for 30 seconds when a new order arrives.</small></span><button type="button" className={`settings-switch ${soundEnabled ? 'on' : ''}`} role="switch" aria-checked={soundEnabled} aria-label="Enable new order sound" onClick={() => onSoundChange(!soundEnabled)}><span /></button></div><p className="settings-note">Sound is off until you enable it here. You can turn it off at any time.</p></section></div>
+}
 function NotificationsMenu({ notifications, open, setOpen, onClear, onDismiss, onSelect }) {
   const menuRef = useRef(null)
 
