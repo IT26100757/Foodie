@@ -1,4 +1,3 @@
-
 package com.foodie.config;
 
 import org.springframework.context.annotation.Bean;
@@ -25,6 +24,13 @@ public class SecurityConfig {
                                 HttpMethod.POST,
                                 "/api/merchants/register"
                         ).permitAll()
+
+                        .requestMatchers("/api/admin/**")
+                        .hasRole("ADMIN")
+
+                        .requestMatchers("/login", "/error")
+                        .permitAll()
+
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form.permitAll());

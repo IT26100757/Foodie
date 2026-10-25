@@ -4,6 +4,7 @@ package com.foodie.dto;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Pattern;
 
 public class MerchantRegistrationRequest {
 
@@ -28,7 +29,11 @@ public class MerchantRegistrationRequest {
     @NotBlank
     private String restaurantAddress;
 
-    @NotBlank
+    @NotBlank(message = "Restaurant phone number is required")
+    @Pattern(
+            regexp = "^[0-9]{10}$",
+            message = "Restaurant phone number must contain exactly 10 digits"
+    )
     private String restaurantPhone;
 
     // Account security
