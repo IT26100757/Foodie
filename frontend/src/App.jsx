@@ -3,11 +3,8 @@ import { useEffect, useRef, useState } from 'react'
 import './App.css'
 import OrdersPage from './OrdersPage.jsx'
 import MenuPage from './MenuPage.jsx'
-import {
-  playOrderAlert,
-  prepareOrderAudio,
-  stopOrderAudio,
-} from './orderAudio.js'
+import WalletPage from './WalletPage.jsx'
+import { playOrderAlert, prepareOrderAudio, stopOrderAudio } from './orderAudio.js'
 
 const foodieLogo = 'https://res.cloudinary.com/g7u1tdxx/image/upload/v1792826258/Gemini_Generated_Image_v0q9c4v0q9c4v0q9.jpg'
 
@@ -133,9 +130,8 @@ function MerchantDashboard({ merchantName, onSignOut }) {
   const [orders, setOrders] = useState([])
   const [notifications, setNotifications] = useState([])
   const [notificationsOpen, setNotificationsOpen] = useState(false)
-
-const [orderSoundEnabled, setOrderSoundEnabled] = useState(false)
-const alertStopRef = useRef(null)
+  const [orderSoundEnabled, setOrderSoundEnabled] = useState(false)
+  const alertStopRef = useRef(null)
 
   useEffect(() => {
     function onMerchantOrder(event) {
@@ -144,15 +140,12 @@ const alertStopRef = useRef(null)
       setOrders((current) => [order, ...current.filter((item) => String(item.id) !== String(order.id))])
       setNotifications((current) => [{ id: `${order.id}-${Date.now()}`, orderId: order.id, receivedAt: new Date().toISOString() }, ...current])
       setNotificationsOpen(true)
-
       if (orderSoundEnabled) {
         alertStopRef.current?.()
         alertStopRef.current = playOrderAlert(30000)
       }
     }
-
     window.addEventListener('foodie:merchant-order', onMerchantOrder)
-
     return () => {
       window.removeEventListener('foodie:merchant-order', onMerchantOrder)
       alertStopRef.current?.()
@@ -160,36 +153,35 @@ const alertStopRef = useRef(null)
       stopOrderAudio()
     }
   }, [orderSoundEnabled])
-
   function handleOrderSoundChange(enabled) {
     if (enabled && !prepareOrderAudio()) return
-
     if (!enabled) {
       alertStopRef.current?.()
       alertStopRef.current = null
     }
-
     setOrderSoundEnabled(enabled)
   }
 
-  function updateAdditionalCharge(orderId, value) {
-    setOrders((current) =>
-        current.map((order) => {
-          if (
-              String(order.id) !== String(orderId) ||
-              order.customerAgreedToAdditionalCharges !== true
-          ) {
-            return order
-          }
-
-          return {
-            ...order,
-            additionalCharge: Math.max(0, Number(value) || 0),
-          }
-        })
-    )
+  function handleWalletTransaction(transaction) {
+    const notification = {
+      id: transaction.transactionId,
+      type: 'wallet-transaction',
+      transactionId: transaction.transactionId,
+      status: transaction.status,
+      amount: transaction.amount,
+      currency: transaction.currency || 'LKR',
+      receivedAt: transaction.updatedAt || new Date().toISOString(),
+    }
+    setNotifications((current) => [notification, ...current.filter((item) => item.id !== notification.id)])
+    setNotificationsOpen(true)
   }
 
+  function updateAdditionalCharge(orderId, value) {
+    setOrders((current) => current.map((order) => {
+      if (String(order.id) !== String(orderId) || order.customerAgreedToAdditionalCharges !== true) return order
+      return { ...order, additionalCharge: Math.max(0, Number(value) || 0) }
+    }))
+  }
   const navItems = ['Home', 'Orders', 'Menu', 'Wallet', 'Delivery', 'Reports', 'Payments', 'Marketing', 'Help']
   const iconMap = { Home: 'home', Orders: 'orders', Menu: 'menu', Wallet: 'wallet', Delivery: 'delivery', Reports: 'reports', Payments: 'payments', Marketing: 'marketing', Help: 'help' }
 
@@ -203,7 +195,7 @@ const alertStopRef = useRef(null)
       <div className="sidebar-bottom"><button type="button" className={active === 'Settings' ? 'active' : ''} onClick={() => setActive('Settings')}><span className="nav-icon"><Icon name="settings" size={19} /></span>Settings</button><button type="button" onClick={onSignOut}><span className="nav-icon"><Icon name="logout" size={19} /></span>Log Out</button><div className="sidebar-profile"><span className="profile-avatar">{(merchantName || 'M').slice(0, 1).toUpperCase()}</span><span><b>{merchantName || 'Merchant'}</b><small>Merchant account</small></span><i>···</i></div></div>
     </aside>
     <section className="dashboard-main">
-      <header className="dashboard-topbar"><div className="breadcrumb">Workspace <span>/</span> {active}</div><div className="dashboard-top-actions"><NotificationsMenu notifications={notifications} open={notificationsOpen} setOpen={setNotificationsOpen} onClear={() => setNotifications([])} onDismiss={(id) => setNotifications((current) => current.filter((item) => item.id !== id))} onSelect={() => setActive('Orders')} /><span className="topbar-divider" /><span className="top-avatar">{(merchantName || 'M').slice(0, 1).toUpperCase()}</span></div></header>
+      <header className="dashboard-topbar"><div className="breadcrumb">Workspace <span>/</span> {active}</div><div className="dashboard-top-actions"><NotificationsMenu notifications={notifications} open={notificationsOpen} setOpen={setNotificationsOpen} onClear={() => setNotifications([])} onDismiss={(id) => setNotifications((current) => current.filter((item) => item.id !== id))} onSelect={(notification) => setActive(notification?.type === 'wallet-transaction' ? 'Wallet' : 'Orders')} /><span className="topbar-divider" />{active === 'Wallet' && <span className="wallet-merchant-label">{merchantName || 'Merchant'}<small>Merchant account</small></span>}<span className="top-avatar">{(merchantName || 'M').slice(0, 1).toUpperCase()}</span></div></header>
       {active === 'Home' ? <div className="dashboard-content">
         <div className="dashboard-heading-row"><div><span className="dashboard-kicker">YOUR BUSINESS AT A GLANCE</span><h1>Good afternoon{merchantName ? `, ${merchantName}` : ''}<span>.</span></h1><p>Here’s what’s happening with your restaurant.</p></div><button className="date-select" type="button" onClick={() => setDateRange((range) => range === 'Last 7 days' ? 'Last 30 days' : 'Last 7 days')}><Icon name="calendar" size={16} />{dateRange}<Icon name="chevronDown" size={14} className="date-chevron" /></button></div>
         <div className="metric-grid">{[['Total Sales', 'trend', 'red'], ['Total Orders', 'orders', 'yellow'], ['Average Order Value', 'coins', 'peach'], ['Total Customers', 'customers', 'mint']].map(([label, icon, tone]) => <article className="metric-card" key={label}><div className="metric-top"><span>{label}</span><i className={`metric-icon ${tone}`}><Icon name={icon} size={18} /></i></div><strong className="metric-empty">—</strong></article>)}</div>
@@ -213,7 +205,7 @@ const alertStopRef = useRef(null)
           <section className="dashboard-card insight-card"><div className="card-heading"><div><h2>Customers</h2><p>New and repeat visitors</p></div></div><div className="customer-legend"><span><i className="legend-new" />New customers</span><span><i className="legend-repeat" />Repeat customers</span></div><div className="customer-empty"><div className="donut-empty"><span>—</span></div><p>Customer insights will appear here when available.</p></div></section>
           <section className="dashboard-card insight-card feedback-card"><div className="card-heading"><div><h2>Menu Item Feedback</h2><p>Hear what customers think</p></div><span className="feedback-stars"><Icon name="feedback" size={17} /></span></div><EmptyState icon="feedback" /></section>
         </div>
-      </div> : active === 'Orders' ? <OrdersPage orders={orders} onAdditionalChargeChange={updateAdditionalCharge} /> : active === 'Menu' ? <MenuPage /> : active === 'Settings' ? <SettingsPage soundEnabled={orderSoundEnabled} onSoundChange={handleOrderSoundChange} /> : <div className="dashboard-content section-content"><span className="dashboard-kicker">FOODIE MERCHANT WORKSPACE</span><h1>{active}<span>.</span></h1><section className="dashboard-card section-empty"><EmptyState /></section></div>}
+      </div> : active === 'Orders' ? <OrdersPage orders={orders} onAdditionalChargeChange={updateAdditionalCharge} /> : active === 'Menu' ? <MenuPage /> : active === 'Wallet' ? <WalletPage onTransactionComplete={handleWalletTransaction} /> : active === 'Settings' ? <SettingsPage soundEnabled={orderSoundEnabled} onSoundChange={handleOrderSoundChange} /> : <div className="dashboard-content section-content"><span className="dashboard-kicker">FOODIE MERCHANT WORKSPACE</span><h1>{active}<span>.</span></h1><section className="dashboard-card section-empty"><EmptyState /></section></div>}
     </section>
   </main>
 }
@@ -242,8 +234,8 @@ function NotificationsMenu({ notifications, open, setOpen, onClear, onDismiss, o
 
   return <div className="notification-menu" ref={menuRef}>
     <button className={`icon-button notification-trigger ${notifications.length ? 'has-notifications' : ''}`} aria-label={`Notifications${notifications.length ? `, ${notifications.length} new` : ''}`} aria-haspopup="dialog" aria-expanded={open} type="button" onClick={() => setOpen((value) => !value)}><Icon name="notifications" size={18} />{notifications.length > 0 && <span className="notification-count">{notifications.length > 99 ? '99+' : notifications.length}</span>}</button>
-    {open && <section className="notification-panel" role="dialog" aria-label="Notifications"><div className="notification-panel-heading"><div><strong>Notifications</strong><span>{notifications.length ? `${notifications.length} new order${notifications.length === 1 ? '' : 's'}` : 'You’re all caught up'}</span></div><button type="button" className="clear-notifications" onClick={onClear} disabled={!notifications.length}>Clear all</button></div>
-      {notifications.length ? <div className="notification-items">{notifications.map((notification) => <article className="notification-entry" key={notification.id}><button type="button" className="notification-item" onClick={() => { onSelect(); setOpen(false) }}><span className="notification-mark"><Icon name="orders" size={17} /></span><span className="notification-copy"><strong>New order received</strong><span>Order #{notification.orderId}</span><time>{new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date(notification.receivedAt))}</time></span></button><button type="button" className="dismiss-notification" aria-label={`Clear notification for order ${notification.orderId}`} onClick={() => onDismiss(notification.id)}>×</button></article>)}</div> : <div className="notifications-empty"><span className="notification-empty-mark"><Icon name="notifications" size={20} /></span><strong>No notifications</strong><p>New order alerts will appear here.</p></div>}
+    {open && <section className="notification-panel" role="dialog" aria-label="Notifications"><div className="notification-panel-heading"><div><strong>Notifications</strong><span>{notifications.length ? `${notifications.length} new notification${notifications.length === 1 ? '' : 's'}` : 'You’re all caught up'}</span></div><button type="button" className="clear-notifications" onClick={onClear} disabled={!notifications.length}>Clear all</button></div>
+      {notifications.length ? <div className="notification-items">{notifications.map((notification) => <article className="notification-entry" key={notification.id}><button type="button" className="notification-item" onClick={() => { onSelect(notification); setOpen(false) }}><span className="notification-mark"><Icon name={notification.type === 'wallet-transaction' ? 'payments' : 'orders'} size={17} /></span><span className="notification-copy"><strong>{notification.type === 'wallet-transaction' ? `Transaction ${notification.status === 'COMPLETED' ? 'successful' : 'failed'}` : 'New order received'}</strong><span>{notification.type === 'wallet-transaction' ? `Transaction ID ${notification.transactionId}` : `Order #${notification.orderId}`}</span>{notification.type === 'wallet-transaction' && <span>{notification.status === 'COMPLETED' ? 'Completed' : 'Failed'} · {new Intl.NumberFormat('en-LK', { style: 'currency', currency: notification.currency || 'LKR' }).format(Number(notification.amount))}</span>}<time>{new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date(notification.receivedAt))}</time></span></button><button type="button" className="dismiss-notification" aria-label={notification.type === 'wallet-transaction' ? `Clear transaction notification ${notification.transactionId}` : `Clear notification for order ${notification.orderId}`} onClick={() => onDismiss(notification.id)}>×</button></article>)}</div> : <div className="notifications-empty"><span className="notification-empty-mark"><Icon name="notifications" size={20} /></span><strong>No notifications</strong><p>Order and wallet transaction alerts will appear here.</p></div>}
     </section>}
   </div>
 }
