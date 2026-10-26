@@ -153,3 +153,82 @@
 .wallet-chart-empty,.wallet-empty-accounts { display:grid; min-height:150px; place-items:center; padding:24px; color:#958b80; font-size:10px; text-align:center; }
 .wallet-empty-accounts { min-height:56px; padding:12px; font-size:8px; }
 
+
+.wallet-heading { gap:16px; }
+.wallet-report-open { display:inline-flex; align-items:center; gap:8px; flex:none; min-height:39px; padding:0 14px; border:1px solid #f2c5bd; border-radius:9px; background:#fff; color:#df4036; font:700 9px 'Plus Jakarta Sans',sans-serif; box-shadow:0 4px 13px #2c20100c; }
+.wallet-report-open:hover { border-color:#ec766b; background:#fffaf9; }
+.wallet-report-open svg { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.wallet-report-backdrop { position:fixed; inset:0; z-index:70; display:grid; place-items:center; padding:18px; background:#1d1a16a6; backdrop-filter:blur(3px); }
+.wallet-report-dialog { display:flex; position:relative; flex-direction:column; width:min(1120px,100%); max-height:calc(100vh - 36px); overflow:hidden; padding:25px; border:1px solid #eee8df; border-radius:16px; background:#fffdf9; box-shadow:0 25px 80px #17110e45; }
+.wallet-report-dialog h2 { margin:7px 0 4px; color:#302d29; font-family:'Bebas Neue',Impact,sans-serif; font-size:30px; font-weight:400; }
+.wallet-report-dialog>p { margin:0 0 16px; color:#898075; font-size:9px; }
+.wallet-report-filters { display:grid; grid-template-columns:minmax(170px,250px) 1fr; align-items:end; gap:15px; margin-bottom:14px; }
+.wallet-report-period-field { display:grid; gap:6px; color:#514a42; font-size:8px; font-weight:800; }
+.wallet-report-period { position:relative; }
+.wallet-report-period-trigger { display:flex; align-items:center; justify-content:space-between; width:100%; height:38px; padding:0 12px; border:1px solid #eae4dc; border-radius:8px; background:#fff; color:#403a34; font:500 9px 'Plus Jakarta Sans',sans-serif; text-align:left; }
+.wallet-report-period-trigger>span { color:#82796f; font-size:15px; }
+.wallet-report-period-menu { position:absolute; top:calc(100% + 4px); left:0; z-index:6; display:grid; width:100%; padding:4px 0; border:1px solid #e5e2dd; border-radius:4px; background:#fff; box-shadow:0 8px 20px #25221c24; }
+.wallet-report-period-menu button { min-height:31px; padding:0 12px; border:0; background:#fff; color:#353535; font:500 9px 'Plus Jakarta Sans',sans-serif; text-align:left; }
+.wallet-report-period-menu button:hover { background:#f0f8fc; color:#168df1; }
+.wallet-report-period-menu button.selected { background:#e4f5fc; color:#168df1; font-weight:700; }
+.wallet-report-filter-label { display:block; margin-bottom:6px; color:#514a42; font-size:8px; font-weight:800; }
+.wallet-report-statuses { display:flex; width:max-content; max-width:100%; gap:3px; padding:3px; border:1px solid #eee7df; border-radius:9px; background:#f5f2ed; }
+.wallet-report-statuses button { min-height:30px; padding:0 12px; border:0; border-radius:7px; background:transparent; color:#756d63; font:600 8px 'Plus Jakarta Sans',sans-serif; }
+.wallet-report-statuses button.selected { background:#fff; color:#df4036; box-shadow:0 2px 6px #2c201014; }
+.wallet-report-summary { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+.wallet-report-summary span { display:flex; flex-direction:column; gap:4px; min-width:115px; padding:9px 11px; border:1px solid #eee7df; border-radius:8px; color:#897f73; font-size:7px; }
+.wallet-report-summary b { color:#39342e; font-size:10px; }
+.wallet-report-table-wrap { flex:1; min-height:120px; overflow:auto; border:1px solid #eee7df; border-radius:9px; background:#fff; }
+.wallet-report-table { width:100%; border-collapse:collapse; font-size:8px; text-align:left; }
+.wallet-report-table th,.wallet-report-table td { padding:9px 8px; border-bottom:1px solid #f0ebe5; vertical-align:top; }
+.wallet-report-table thead th { position:sticky; top:0; z-index:1; background:#faf8f5; color:#796f64; font-size:7px; text-transform:uppercase; letter-spacing:.35px; }
+.wallet-report-table td { color:#4a443d; }
+.wallet-report-table td:first-child { font-weight:800; white-space:nowrap; }
+.wallet-report-table td:nth-child(2) { min-width:145px; max-width:220px; }
+.wallet-report-table td:nth-child(n+4):nth-child(-n+7) { white-space:nowrap; }
+.wallet-report-table td small { display:block; margin-top:3px; color:#999085; font-size:7px; }
+.wallet-report-table tfoot th { position:sticky; bottom:0; background:#fffaf3; color:#39342e; text-align:left; white-space:nowrap; }
+.wallet-report-table .wallet-report-empty { padding:28px; color:#948a7e; text-align:center; }
+.wallet-report-footer { display:flex; align-items:center; justify-content:space-between; gap:12px; padding-top:13px; color:#8a8177; font-size:8px; }
+.wallet-report-footer>div { display:flex; align-items:center; justify-content:flex-end; gap:7px; }
+.wallet-report-footer button { min-height:34px; padding:0 11px; border:1px solid #ebdfd7; border-radius:8px; background:#fff; color:#4c453e; font:700 8px 'Plus Jakarta Sans',sans-serif; }
+.wallet-report-footer button:last-child { border-color:#ef4438; background:#ef4438; color:#fff; }
+.wallet-report-footer button:disabled { opacity:.6; }
+.wallet-report-error { color:#bf3a31; }
+@media(max-width:760px) { .wallet-report-dialog { padding:19px 14px; }.wallet-report-filters { grid-template-columns:1fr; }.wallet-report-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }.wallet-report-footer { align-items:flex-start; flex-direction:column; }.wallet-report-footer>div { flex-wrap:wrap; justify-content:flex-start; }.wallet-report-table { min-width:830px; } }
+@media(max-width:520px) { .wallet-report-open { min-height:34px; padding:0 9px; font-size:8px; }.wallet-report-dialog h2 { font-size:27px; }.wallet-report-statuses button { padding:0 8px; } }
+
+/* Wallet surfaces in dashboard dark theme */
+.dashboard-shell.dark-theme .wallet-content { color:#f4f0ea; }
+.dashboard-shell.dark-theme .wallet-heading h1,.dashboard-shell.dark-theme .wallet-section-label h2,.dashboard-shell.dark-theme .wallet-card-heading h2,.dashboard-shell.dark-theme .wallet-summary-card>strong,.dashboard-shell.dark-theme .wallet-transaction-name b,.dashboard-shell.dark-theme .wallet-dialog h2,.dashboard-shell.dark-theme .wallet-processing-dialog h2,.dashboard-shell.dark-theme .wallet-receipt h2,.dashboard-shell.dark-theme .wallet-receipt-state>strong,.dashboard-shell.dark-theme .wallet-receipt-section b,.dashboard-shell.dark-theme .wallet-receipt-section dd { color:#f4f0ea; }
+.dashboard-shell.dark-theme :is(.wallet-heading p,.wallet-summary-top,.wallet-summary-card>small,.wallet-card-heading p,.wallet-chart-labels,.wallet-chart-months,.wallet-chart-footnote,.wallet-table td,.wallet-table th,.wallet-transaction-name small,.wallet-empty-accounts,.wallet-dialog>p,.wallet-dialog-form label,.wallet-processing-dialog>p,.wallet-processing-steps span,.wallet-receipt-section>small,.wallet-receipt-section dt,.wallet-receipt-note) { color:#b2aa9f; }
+.dashboard-shell.dark-theme :is(.wallet-summary-card,.wallet-analysis-card,.wallet-transactions-card,.wallet-accounts,.wallet-add-bank,.wallet-dialog,.wallet-report-dialog) { border-color:#3b3833; background:#242321; color:#eee9e1; }
+.dashboard-shell.dark-theme .wallet-summary-card { box-shadow:0 5px 18px #0003; }
+.dashboard-shell.dark-theme .wallet-fee-track,.dashboard-shell.dark-theme .wallet-net-track { background:#393631; }
+.dashboard-shell.dark-theme .wallet-chart-plot>i { border-color:#403c36; }
+.dashboard-shell.dark-theme .wallet-chart-footnote,.dashboard-shell.dark-theme .wallet-table td,.dashboard-shell.dark-theme .wallet-receipt-section { border-color:#3b3833; }
+.dashboard-shell.dark-theme .wallet-table th { border-color:#3b3833; color:#b2aa9f; }
+.dashboard-shell.dark-theme .wallet-table td { border-color:#35322e; }
+.dashboard-shell.dark-theme .wallet-transaction-name b { color:#eee9e1; }
+.dashboard-shell.dark-theme .wallet-account { border-color:#3b3833; background:#1d1c1a; }
+.dashboard-shell.dark-theme .wallet-account-copy b,.dashboard-shell.dark-theme .wallet-bank-picker-copy b { color:#f0ebe3; }
+.dashboard-shell.dark-theme .wallet-account-copy small,.dashboard-shell.dark-theme .wallet-bank-picker-copy small { color:#aaa49a; }
+.dashboard-shell.dark-theme .wallet-add-button,.dashboard-shell.dark-theme .wallet-add-small,.dashboard-shell.dark-theme .wallet-dialog-close,.dashboard-shell.dark-theme .wallet-receipt-secondary { border-color:#45413a; background:#2b2926; color:#eee9e1; }
+.dashboard-shell.dark-theme :is(.wallet-period,.wallet-period-picker .wallet-period,.wallet-bank-picker-trigger,.wallet-bank-picker-menu>button,.wallet-bank-name-picker button,.wallet-dialog-form input,.wallet-dialog-form select,.wallet-bank-picker-menu,.wallet-bank-name-menu,.wallet-period-menu,.wallet-period-menu button,.wallet-report-period-trigger,.wallet-report-period-menu,.wallet-report-period-menu button) { border-color:#45413a; background:#1d1c1a; color:#eee9e1; }
+.dashboard-shell.dark-theme .wallet-period-menu button:hover,.dashboard-shell.dark-theme .wallet-period-menu button.selected,.dashboard-shell.dark-theme .wallet-bank-picker-menu>button:hover,.dashboard-shell.dark-theme .wallet-bank-picker-menu>button.selected,.dashboard-shell.dark-theme .wallet-report-period-menu button:hover,.dashboard-shell.dark-theme .wallet-report-period-menu button.selected { background:#40302b; color:#ff9387; }
+.dashboard-shell.dark-theme .wallet-bank-mark { background-color:#fff; }
+.dashboard-shell.dark-theme .wallet-dialog-note { border-color:#554a31; background:#342f24; color:#e4c779; }
+.dashboard-shell.dark-theme .wallet-dialog-submit { background:#ef4438; color:#fff; }
+.dashboard-shell.dark-theme .wallet-receipt-state,.dashboard-shell.dark-theme .wallet-receipt-section { border-color:#45413a; }
+.dashboard-shell.dark-theme .wallet-receipt-state>b { color:#8fd4a1; }
+.dashboard-shell.dark-theme .wallet-receipt-section>span { color:#aaa49a; }
+.dashboard-shell.dark-theme .wallet-report-dialog h2 { color:#f4f0ea; }
+.dashboard-shell.dark-theme .wallet-report-dialog>p,.dashboard-shell.dark-theme .wallet-report-period-field,.dashboard-shell.dark-theme .wallet-report-filter-label,.dashboard-shell.dark-theme .wallet-report-footer { color:#b2aa9f; }
+.dashboard-shell.dark-theme .wallet-report-statuses { border-color:#45413a; background:#2b2926; }
+.dashboard-shell.dark-theme .wallet-report-statuses button { color:#c4bdb2; }
+.dashboard-shell.dark-theme .wallet-report-statuses button.selected { background:#40302b; color:#ff9387; }
+.dashboard-shell.dark-theme .wallet-report-table th,.dashboard-shell.dark-theme .wallet-report-table td,.dashboard-shell.dark-theme .wallet-report-table tfoot th { border-color:#3b3833; background:#242321; color:#e4ded5; }
+.dashboard-shell.dark-theme .wallet-report-table thead th { background:#2b2926; color:#b2aa9f; }
+.dashboard-shell.dark-theme .wallet-report-table small { color:#aaa49a; }
+.dashboard-shell.dark-theme .wallet-report-period-menu { box-shadow:0 12px 30px #0006; }
+@media(max-width:900px) { .dashboard-shell.dark-theme .wallet-right-column { color:#eee9e1; } }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { playTransactionResult, prepareTransactionAudio } from './transactionAudio.js'
 import './WalletPage.css'
+import WalletReports from './WalletReports.jsx'
 
 const sriLankanBanks = ['Bank of Ceylon', 'Commercial Bank', 'Hatton National Bank', "People's Bank", 'Nations Trust Bank', 'Sampath Bank', 'Seylan Bank', 'Amana Bank']
 const bankLogoCrops = {
@@ -18,10 +19,11 @@ const bankLogoCrops = {
 const money = (value) => `Rs. ${Math.abs(value).toLocaleString('en-LK')}`
 const moneyWithCents = (value) => `Rs. ${Math.abs(Number(value)).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
-function WalletPage({ onTransactionComplete }) {
-  const [accounts, setAccounts] = useState([])
+function WalletPage({ onTransactionComplete, orders = [] }) {
+  const [accounts, setAccounts] = useState(() => { try { return JSON.parse(localStorage.getItem('foodie-bank-accounts')) || [] } catch { return [] } })
   const [transactions, setTransactions] = useState([])
   const [dialog, setDialog] = useState('')
+  const [reportsOpen, setReportsOpen] = useState(false)
   const [notice, setNotice] = useState('')
   const [accountForm, setAccountForm] = useState({ bank: '', name: '', number: '', branch: '' })
   const [transferAmount, setTransferAmount] = useState('')
@@ -34,6 +36,11 @@ function WalletPage({ onTransactionComplete }) {
   const [summaryPeriod, setSummaryPeriod] = useState('This month')
   const [chartPeriod, setChartPeriod] = useState('Last 6 months')
 
+  useEffect(() => {
+    const syncAccounts = () => { try { setAccounts(JSON.parse(localStorage.getItem('foodie-bank-accounts')) || []) } catch { setAccounts([]) } }
+    window.addEventListener('foodie:bank-accounts', syncAccounts)
+    return () => window.removeEventListener('foodie:bank-accounts', syncAccounts)
+  }, [])
   useEffect(() => {
     let cancelled = false
     fetch('/api/wallet/transfers')
@@ -57,7 +64,10 @@ function WalletPage({ onTransactionComplete }) {
     if (!accountForm.bank) { setAccountError('Choose a bank from the list.'); return }
     setAccountError('')
     const account = { ...accountForm, id: Date.now(), number: `•••• ${accountForm.number.slice(-4)}`, primary: accounts.length === 0 }
-    setAccounts((current) => [...current, account])
+    const nextAccounts = [...accounts, account]
+    setAccounts(nextAccounts)
+    localStorage.setItem('foodie-bank-accounts', JSON.stringify(nextAccounts))
+    window.dispatchEvent(new Event('foodie:bank-accounts'))
     setAccountForm({ bank: '', name: '', number: '', branch: '' })
     setDialog('')
     setSelectedAccount(String(account.id))
@@ -129,7 +139,7 @@ function WalletPage({ onTransactionComplete }) {
   }
 
   return <div className="dashboard-content wallet-content">
-    <div className="dashboard-heading-row wallet-heading"><div><span className="dashboard-kicker">YOUR MONEY, MADE CLEAR</span><h1>Merchant Wallet<span>.</span></h1><p>See your earnings, service charge, and settlement activity in one place.</p></div></div>
+    <div className="dashboard-heading-row wallet-heading"><div><span className="dashboard-kicker">YOUR MONEY, MADE CLEAR</span><h1>Merchant Wallet<span>.</span></h1><p>See your earnings, service charge, and settlement activity in one place.</p></div><button type="button" className="wallet-report-open" onClick={() => setReportsOpen(true)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10h4v10M10 20V4h4v16M16 20v-8h4v8M3 20h18" /></svg><span>Generate report</span></button></div>
     <section className="wallet-balance-card">
       <div className="wallet-balance-copy"><span className="wallet-overline">FOODIE BANK BALANCE <i>•</i> AVAILABLE</span><strong>—</strong><p>Balance information is not available.</p></div>
       <div className="wallet-balance-actions"><button type="button" className="wallet-transfer-button" onClick={() => setDialog('transfer')}><span>↗</span> Transfer to bank</button><button type="button" className="wallet-transactions-link" onClick={() => document.getElementById('wallet-transactions')?.scrollIntoView({ behavior: 'smooth' })}>View transactions <span>↓</span></button></div>
@@ -157,6 +167,7 @@ function WalletPage({ onTransactionComplete }) {
         <section className="wallet-transfer-promo"><div className="wallet-promo-icon">↗</div><span className="wallet-section-kicker">QUICK SETTLEMENT</span><h2>Move your earnings</h2><p>Transfer your available balance to any linked bank account.</p><button type="button" onClick={() => setDialog('transfer')}>Transfer to bank <span>→</span></button><i className="wallet-promo-orb" /></section>
       </aside>
     </div>
+    {reportsOpen && <WalletReports orders={orders} onClose={() => setReportsOpen(false)} />}
     {notice && <div className="wallet-toast" role="status">✓ <span>{notice}</span><button type="button" onClick={() => setNotice('')} aria-label="Dismiss">×</button></div>}
     {dialog && <div className="wallet-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !transferBusy) setDialog('') }}>
       {dialog === 'processing' ? <section className="wallet-dialog wallet-processing-dialog" role="status" aria-live="polite" aria-busy="true"><div className="wallet-processing-spinner" /><span className="wallet-section-kicker">FOODIE MERCHANT WALLET</span><h2>Transfer processing</h2><p>Your transaction is being recorded and checked. Keep this window open for the result.</p><div className="wallet-processing-steps"><span className="done">✓ Request received</span><span className="active"><i /> Checking destination bank</span><span>Confirmation pending</span></div></section>
