@@ -1,6 +1,13 @@
 
 package com.foodie.service;
 
+import com.foodie.dto.DailyPerformanceResponse;
+import com.foodie.dto.MerchantPerformanceResponse;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.TreeMap;
+import java.math.RoundingMode;
 import com.foodie.model.Order;
 import com.foodie.model.OrderItem;
 import com.foodie.model.Restaurant;
@@ -190,5 +197,93 @@ public class OrderService {
         );
     }
 
+
+    @Transactional(readOnly = true)
+    public MerchantPerformanceResponse getBusinessPerformance(
+            Long merchantId, Long restaurantId, int days) {
+
+        if (days != 7 && days != 30) {
+            throw new IllegalArgumentException(
+                    "Days must be 7 or 30");
+        }
+
+        verifyRestaurantOwnership(merchantId, restaurantId);
+
+        LocalDate endDate = LocalDate.now();
+        LocalDate startDate = endDate.minusDays(days - 1);
+
+        List<Order> orders = orderRepository
+                .findByRestaurantIdOrderByCreatedAtDesc(restaurantId);
+
+        Map<LocalDate, BigDecimal> dailySales = new TreeMap<>();
+        Map<LocalDate, Long> dailyOrders = new TreeMap<>();
+
+        for (int i = 0; i < days; i++) {
+            LocalDate date = startDate.plusDays(i);
+            dailySales.put(date, BigDecimal.ZERO);
+            dailyOrders.put(date, 0L);
+        }
+
+        BigDecimal totalSales = BigDecimal.ZERO;
+        long totalOrders = 0;
+        long deliveredOrders = 0;
+
+        for (Order order : orders) {
+            if (order.getCreatedAt() == null) {
+                continue;
+            }
+
+            LocalDate date = order.getCreatedAt().toLocalDate();
+
+            if (date.isBefore(startDate) || date.isAfter(endDate)) {
+                continue;
+            }
+
+            dailyOrders.put(date, dailyOrders.get(date) + 1);
+            totalOrders++;
+
+            if ("DELIVERED".equals(order.getStatus())) {
+                BigDecimal amount = order.getTotalAmount();
+
+                totalSales = totalSales.add(amount);
+                deliveredOrders++;
+
+                dailySales.put(
+                        date,
+                        dailySales.get(date).add(amount)
+                );
+            }
+        }
+
+        BigDecimal averageOrderValue =
+                deliveredOrders == 0
+                        ? BigDecimal.ZERO
+                        : totalSales.divide(
+                        BigDecimal.valueOf(deliveredOrders),
+                        2,
+                        RoundingMode.HALF_UP
+                );
+
+        List<DailyPerformanceResponse> dailyPerformance =
+                new ArrayList<>();
+
+        for (LocalDate date : dailySales.keySet()) {
+            dailyPerformance.add(
+                    new DailyPerformanceResponse(
+                            date,
+                            dailySales.get(date),
+                            dailyOrders.get(date)
+                    )
+            );
+        }
+
+        return new MerchantPerformanceResponse(
+                days,
+                totalSales,
+                totalOrders,
+                averageOrderValue,
+                dailyPerformance
+        );
+    }
 
 }

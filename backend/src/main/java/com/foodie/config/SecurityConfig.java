@@ -16,7 +16,8 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf
                         .ignoringRequestMatchers(
-                                "/api/merchants/register"
+                                "/api/merchants/register",
+                                "/api/merchants/login"
                         )
                 )
                 .authorizeHttpRequests(auth -> auth

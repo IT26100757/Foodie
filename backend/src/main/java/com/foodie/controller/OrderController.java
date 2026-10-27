@@ -4,6 +4,7 @@ package com.foodie.controller;
 import com.foodie.dto.OrderItemResponse;
 import com.foodie.dto.OrderResponse;
 import com.foodie.dto.MerchantDashboardResponse;
+import com.foodie.dto.MerchantPerformanceResponse;
 import com.foodie.model.Merchant;
 import com.foodie.repository.MerchantRepository;
 import com.foodie.service.OrderService;
@@ -147,5 +148,19 @@ public class OrderController {
         return orderService.getDashboardStats(
                 merchantId, restaurantId);
     }
+
+
+    @GetMapping("/performance")
+    public MerchantPerformanceResponse getPerformance(
+            @PathVariable Long restaurantId,
+            @RequestParam(defaultValue = "7") int days,
+            Authentication authentication) {
+
+        Long merchantId = getMerchantId(authentication);
+
+        return orderService.getBusinessPerformance(
+                merchantId, restaurantId, days);
+    }
+
 
 }
