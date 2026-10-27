@@ -58,3 +58,9 @@
 
 .lock-icon { transform:none; }
 
+.splash-content>p.splash-welcome-message{max-width:min(88vw,720px);margin:18px 0 22px;color:#ef3029;font-size:clamp(20px,3vw,31px);font-weight:800;letter-spacing:.1px;line-height:1.25;text-transform:none}
+.splash-content>p.splash-welcome-message strong{color:#24211d;font-weight:900}
+.splash-screen:has(.splash-welcome-message){animation:splash-out .45s ease 2.15s both}
+.splash-screen:has(.splash-welcome-message) .splash-food-art{animation:welcome-food-pop .8s cubic-bezier(.2,.8,.2,1) both}
+@keyframes welcome-food-pop{from{opacity:.55;transform:translateY(12px) scale(.92)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(prefers-reduced-motion:reduce){.splash-screen{animation-delay:0s!important}}

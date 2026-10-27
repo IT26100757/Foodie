@@ -71,12 +71,12 @@ export default function AccountCenter({ section, customer, profile, onProfileCha
   const [draft, setDraft] = useState(() => ({ ...profile }))
   const [notice, setNotice] = useState('')
   const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' })
-  const [cardForm, setCardForm] = useState({ bank: '', holder: '', number: '', expiry: '', cvv: '' })
+  const [cardForm, setCardForm] = useState({ bank: '', holder: '', last4: '', expiry: '' })
   const [cards, setCards] = useState(() => {
     try { return JSON.parse(localStorage.getItem('foodie.customer.cards') || '[]') } catch { return [] }
   })
   const [photoError, setPhotoError] = useState('')
-  const totalPoints = orders.reduce((total, order) => total + Number(order.points || 0), 0)
+  const totalPoints = Math.max(0, orders.reduce((total, order) => total + Number(order.points || 0) - Number(order.redeemedPoints || 0), 0))
   const displayName = draft.name || customer.displayName || 'Foodie customer'
 
   function saveProfile(event) {
@@ -107,16 +107,16 @@ export default function AccountCenter({ section, customer, profile, onProfileCha
   }
   function addCard(event) {
     event.preventDefault()
-    const digits = cardForm.number.split('').filter((char) => char >= '0' && char <= '9').join('')
-    if (!cardForm.bank || !cardForm.holder.trim() || digits.length < 12 || digits.length > 19 || cardForm.expiry.split('/').length !== 2 || cardForm.expiry.split('/')[0].length !== 2 || cardForm.expiry.split('/')[1].length !== 2 || cardForm.cvv.length < 3 || cardForm.cvv.length > 4) {
-      setNotice('Enter the bank, cardholder, valid card number, expiry (MM/YY), and security code.')
+    const last4 = cardForm.last4.replace(/\D/g, '').slice(-4)
+    if (!cardForm.bank || !cardForm.holder.trim() || last4.length !== 4 || cardForm.expiry.split('/').length !== 2 || cardForm.expiry.split('/')[0].length !== 2 || cardForm.expiry.split('/')[1].length !== 2) {
+      setNotice('Enter the bank, cardholder, final four digits, and expiry (MM/YY).')
       return
     }
-    const next = [...cards, { id: crypto.randomUUID(), bank: cardForm.bank, holder: cardForm.holder.trim(), last4: digits.slice(-4), expiry: cardForm.expiry }]
+    const next = [...cards, { id: crypto.randomUUID(), bank: cardForm.bank, holder: cardForm.holder.trim(), last4, expiry: cardForm.expiry }]
     setCards(next)
     localStorage.setItem('foodie.customer.cards', JSON.stringify(next))
-    setCardForm({ bank: '', holder: '', number: '', expiry: '', cvv: '' })
-    setNotice('Card summary saved. Full card number and security code were discarded; no payment was processed.')
+    setCardForm({ bank: '', holder: '', last4: '', expiry: '' })
+    setNotice('Demo card summary saved. No full card number or security code was requested or stored.')
   }
   function deleteCard(id) {
     const next = cards.filter((card) => card.id !== id)
@@ -151,6 +151,8 @@ export default function AccountCenter({ section, customer, profile, onProfileCha
                 <label><span className="customer-field-label"><ContactIcon name="address" />Address line 1</span><input value={draft.address1} onChange={(event) => setDraft({ ...draft, address1: event.target.value })} placeholder="House or building" /></label>
                 <label><span className="customer-field-label"><ContactIcon name="address" />Address line 2</span><input value={draft.address2} onChange={(event) => setDraft({ ...draft, address2: event.target.value })} placeholder="Street or lane" /></label>
                 <label><span className="customer-field-label"><ContactIcon name="address" />Address line 3</span><input value={draft.address3} onChange={(event) => setDraft({ ...draft, address3: event.target.value })} placeholder="City or district" /></label>
+                <label><span className="customer-field-label"><ContactIcon name="address" />City</span><input value={draft.city || ''} onChange={(event) => setDraft({ ...draft, city: event.target.value })} autoComplete="address-level2" /></label>
+                <label><span className="customer-field-label"><ContactIcon name="address" />Postal code</span><input value={draft.postalCode || ''} onChange={(event) => setDraft({ ...draft, postalCode: event.target.value })} autoComplete="postal-code" /></label>
               </div>
               <button className="account-primary" type="submit">Save profile</button>
             </form>
@@ -159,9 +161,9 @@ export default function AccountCenter({ section, customer, profile, onProfileCha
           {active === 'orders' && <div className="account-section"><div className="account-section-heading"><div><span>HISTORY</span><h3>My orders</h3><p>Order ID, items, charges, and totals for this device.</p></div></div>{orders.length ? <div className="customer-order-list">{[...orders].reverse().map((order) => <article className="customer-order" key={order.id}><div className="customer-order-head"><div><small>ORDER ID</small><strong>{order.id}</strong></div><span>{new Date(order.createdAt).toLocaleString('en-LK')}</span></div><div className="customer-order-items"><b>Order items</b>{order.items.map((item) => <span key={item.id}>{item.quantity} × {item.name}</span>)}</div><div className="customer-order-totals"><span>Additional charges <b>{money(order.additionalCharges)}</b></span><span>Net total <b>{money(order.netTotal)}</b></span><span>Reward stars <b>★ {order.points || 0}</b></span></div></article>)}</div> : <div className="account-empty"><span>🧾</span><h4>No orders yet</h4><p>Your orders will appear here after you place one.</p></div>}</div>}
           {active === 'wallet' && <div className="account-section"><div className="account-section-heading"><div><span>PAYMENT METHODS</span><h3>Wallet</h3><p>Manage saved card summaries on this device.</p></div></div>
             <div className="customer-card-list">{cards.map((card) => <article className="customer-saved-card" key={card.id}><BankLogo bank={card.bank} /><div><strong>{card.bank}</strong><span>{card.holder} · •••• {card.last4}</span><small>Expires {card.expiry}</small></div><button type="button" aria-label={'Delete card ending ' + card.last4} onClick={() => deleteCard(card.id)}>Delete</button></article>)}{!cards.length && <div className="customer-wallet-empty">No cards added yet.</div>}</div>
-            <form className="customer-card-form" onSubmit={addCard}><h4>Add a card</h4><BankPicker value={cardForm.bank} onChange={(bank) => setCardForm({ ...cardForm, bank })} /><div className="customer-form-grid"><label>Cardholder name<input autoComplete="cc-name" value={cardForm.holder} onChange={(event) => setCardForm({ ...cardForm, holder: event.target.value })} required /></label><label>Card number<input inputMode="numeric" autoComplete="cc-number" value={cardForm.number} onChange={(event) => setCardForm({ ...cardForm, number: event.target.value.split('').filter((char) => char >= '0' && char <= '9').join('').slice(0, 19) })} placeholder="1234 5678 9012 3456" required /></label><label>Expiry (MM/YY)<input autoComplete="cc-exp" value={cardForm.expiry} onChange={(event) => setCardForm({ ...cardForm, expiry: event.target.value.split('').filter((char) => (char >= '0' && char <= '9') || char === '/').join('').slice(0, 5) })} placeholder="MM/YY" required /></label><label>Security code<input type="password" inputMode="numeric" autoComplete="cc-csc" value={cardForm.cvv} onChange={(event) => setCardForm({ ...cardForm, cvv: event.target.value.split('').filter((char) => char >= '0' && char <= '9').join('').slice(0, 4) })} required /></label></div><p className="customer-wallet-note">Demo only: full card numbers and security codes are discarded after saving. No payment is processed.</p><button className="account-primary" type="submit">Save card summary</button></form>
+            <form className="customer-card-form" onSubmit={addCard}><h4>Add a card</h4><BankPicker value={cardForm.bank} onChange={(bank) => setCardForm({ ...cardForm, bank })} /><div className="customer-form-grid"><label>Cardholder name<input autoComplete="cc-name" value={cardForm.holder} onChange={(event) => setCardForm({ ...cardForm, holder: event.target.value })} required /></label><label>Last four digits<input inputMode="numeric" autoComplete="off" value={cardForm.last4} onChange={(event) => setCardForm({ ...cardForm, last4: event.target.value.replace(/\D/g, "").slice(0, 4) })} placeholder="4242" required /></label><label>Expiry (MM/YY)<input autoComplete="cc-exp" value={cardForm.expiry} onChange={(event) => setCardForm({ ...cardForm, expiry: event.target.value.split("").filter((char) => (char >= "0" && char <= "9") || char === "/").join("").slice(0, 5) })} placeholder="MM/YY" required /></label></div><p className="customer-wallet-note">Demo only: this account stores a masked card summary. Full card numbers and security codes are never requested. No payment is processed.</p><button className="account-primary" type="submit">Save card summary</button></form>
           </div>}
-          {active === 'rewards' && <div className="account-section"><div className="account-section-heading"><div><span>FOODIE REWARDS</span><h3>Reward stars</h3><p>Earn stars when you place an order.</p></div></div><div className="reward-balance"><span>🎁</span><div><b>{totalPoints}</b><small>stars earned</small></div></div><div className="reward-rules"><h4>How stars are earned</h4><p><span>Under Rs. 1,000</span><b>1 star</b></p><p><span>Rs. 1,000 – 2,499</span><b>2 stars</b></p><p><span>Rs. 2,500 – 4,999</span><b>3 stars</b></p><p><span>Rs. 5,000 and above</span><b>5 stars</b></p><small>Stars are calculated from the food subtotal, before additional charges.</small></div></div>}
+          {active === 'rewards' && <div className="account-section"><div className="account-section-heading"><div><span>FOODIE REWARDS</span><h3>Reward stars</h3><p>Earn stars when you place an order.</p></div></div><div className="reward-balance"><span>🎁</span><div><b>{totalPoints}</b><small>stars available</small></div></div><div className="reward-rules"><h4>How stars are earned</h4><p><span>Under Rs. 1,000</span><b>1 star</b></p><p><span>Rs. 1,000 – 2,499</span><b>2 stars</b></p><p><span>Rs. 2,500 – 4,999</span><b>3 stars</b></p><p><span>Rs. 5,000 and above</span><b>5 stars</b></p><small>Stars are calculated from the food subtotal, before additional charges.</small></div></div>}
           {active === 'driver' && <div className="account-section"><div className="account-section-heading"><div><span>DRIVER PORTAL</span><h3>Deliver with Foodie</h3><p>The driver portal is not available yet.</p></div></div><div className="account-empty"><span>🛵</span><h4>Coming soon</h4><p>We’ll open the driver application when the driver portal is ready.</p></div></div>}
         </div>
       </div>

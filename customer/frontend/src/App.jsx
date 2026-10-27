@@ -34,13 +34,16 @@ function FoodDecorations() {
   )}<i className="spark spark-one">✳</i><i className="spark spark-two">✦</i><i className="spark spark-three">✳</i><i className="trail trail-one" /><i className="trail trail-two" /></div>
 }
 
-function SplashScreen() {
-  return <main className="splash-screen" aria-label="Loading Foodie customer portal">
+function SplashScreen({ welcome }) {
+  const greeting = welcome?.kind === 'guest'
+    ? 'Welcome, guest! Let’s find something delicious.'
+    : welcome?.name ? `Welcome back, ${welcome.name}!` : null
+  return <main className="splash-screen" aria-label={greeting || 'Loading Foodie customer portal'}>
     <div className="splash-blob splash-blob-top" /><div className="splash-blob splash-blob-bottom" /><FoodDecorations />
     <div className="splash-content">
       <div className="splash-food-art" aria-hidden="true"><span className="splash-fry">🍟</span><span className="splash-pizza">🍕</span><div className="meal-stack"><span>🥤</span><span>🍔</span><span>🍟</span></div><span className="splash-burger">🍔</span><span className="splash-donut">🍩</span></div>
-      <div className="splash-wordmark">foodie<span>.</span></div><span className="splash-tag">CUSTOMER</span><p>GOOD FOOD. GREAT MOODS.</p>
-      <div className="splash-loader" role="status" aria-label="Loading"><span /><span /><span /></div><span className="loading-copy">Loading your foodie experience...</span>
+      <div className="splash-wordmark">foodie<span>.</span></div><span className="splash-tag">CUSTOMER</span><p className={greeting ? 'splash-welcome-message' : ''}>{welcome?.kind === 'customer' ? <>Welcome back, <strong>{welcome.name}</strong>!</> : greeting || 'GOOD FOOD. GREAT MOODS.'}</p>
+      <div className="splash-loader" role="status" aria-label={greeting ? 'Preparing your Foodie home page' : 'Loading'}><span /><span /><span /></div><span className="loading-copy">{greeting ? 'Getting your foodie experience ready...' : 'Loading your foodie experience...'}</span>
     </div>
   </main>
 }
@@ -62,10 +65,23 @@ function passwordStrength(password) {
   return { label: ['Too short', 'Weak', 'Fair', 'Good', 'Strong'][score], level: score }
 }
 
+function normalizeCustomerPhone(value) {
+  const digits = String(value || '').replace(/\D/g, '')
+  return digits.replace(/^94/, '').replace(/^0/, '').slice(-9)
+}
+
+function readLocalCustomerAccounts() {
+  try {
+    const accounts = JSON.parse(localStorage.getItem('foodie.customer.accounts') || '[]')
+    return Array.isArray(accounts) ? accounts : []
+  } catch { return [] }
+}
+
 function App() {
   const [isHome, setIsHome] = useState(window.location.pathname === '/home')
   const isAuthRoute = !isHome && ['/', '/login', '/register'].includes(window.location.pathname)
   const [view, setView] = useState('splash')
+  const [welcome, setWelcome] = useState(null)
   const [registering, setRegistering] = useState(window.location.pathname === '/register')
   const [showPassword, setShowPassword] = useState(false)
   const [keepSignedIn, setKeepSignedIn] = useState(true)
@@ -81,6 +97,13 @@ function App() {
     const timer = window.setTimeout(() => setView('portal'), delay)
     return () => window.clearTimeout(timer)
   }, [])
+
+  useEffect(() => {
+    if (view !== 'welcome') return undefined
+    const delay = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 550 : 2600
+    const timer = window.setTimeout(() => setView('portal'), delay)
+    return () => window.clearTimeout(timer)
+  }, [view])
 
   function switchMode(nextMode) {
     setRegistering(nextMode)
@@ -122,14 +145,33 @@ function App() {
     window.setTimeout(() => {
       setSubmitting(false)
       if (registering) {
-        setNotice('Your details are ready. Account services will be available soon.')
+        const firstName = String(data.get('firstName') || '').trim()
+        const lastName = String(data.get('lastName') || '').trim()
+        const email = String(data.get('email') || '').trim().toLowerCase()
+        const phoneDigits = normalizeCustomerPhone(data.get('phone'))
+        const displayName = `${firstName} ${lastName}`.trim()
+        const accounts = readLocalCustomerAccounts().filter((account) => account.email !== email && normalizeCustomerPhone(account.phone) !== phoneDigits)
+        accounts.push({ email, phone: phoneDigits, displayName })
+        try { localStorage.setItem('foodie.customer.accounts', JSON.stringify(accounts)) } catch { /* Registration can continue if this browser blocks local storage. */ }
+        setNotice('Your account details are saved on this device. Sign in to see your welcome.')
         return
       }
-      sessionStorage.setItem('foodie.customer', JSON.stringify({ identifier, displayName: identifier.includes('@') ? identifier.split('@')[0] : 'Foodie customer' }))
+      let savedName = ''
+      try { savedName = JSON.parse(localStorage.getItem('foodie.customer.profile') || 'null')?.name?.trim() || '' } catch { /* Keep using the sign-in identifier when no profile is saved. */ }
+      const normalizedIdentifier = identifier.trim().toLowerCase()
+      const normalizedPhone = normalizeCustomerPhone(identifier)
+      const registeredAccount = readLocalCustomerAccounts().find((account) => String(account.email || '').trim().toLowerCase() === normalizedIdentifier || (normalizedPhone && normalizeCustomerPhone(account.phone) === normalizedPhone))
+      const identifierName = identifier.includes('@') ? identifier.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()) : ''
+      const displayName = registeredAccount?.displayName || savedName || identifierName || 'Foodie customer'
+      sessionStorage.setItem('foodie.customer', JSON.stringify({ identifier, displayName }))
+      setWelcome({ kind: 'customer', name: displayName })
       window.history.replaceState({}, '', '/home')
       setIsHome(true)
+      setView('welcome')
     }, 500)
   }
+
+  if (view === 'welcome') return <SplashScreen welcome={welcome} />
 
   if (isHome || !isAuthRoute) return <HomePage />
 
@@ -170,7 +212,7 @@ function App() {
         </form>
         <div className="login-divider"><span>{registering ? 'ALREADY A FOODIE?' : 'NEW TO FOODIE?'}</span></div>
         <button className="register-cta" type="button" onClick={() => switchMode(!registering)}>{registering ? 'Sign in to your account' : 'Create your account'}</button>
-        {!registering && <div className="guest-action"><button className="guest-cta" type="button" onClick={() => { sessionStorage.removeItem('foodie.customer'); window.history.replaceState({}, '', '/home?mode=guest'); setIsHome(true) }}>Continue as guest <span aria-hidden="true">→</span></button><span>Browse and order without creating an account.</span></div>}
+        {!registering && <div className="guest-action"><button className="guest-cta" type="button" onClick={() => { sessionStorage.removeItem('foodie.customer'); setWelcome({ kind: 'guest' }); window.history.replaceState({}, '', '/home?mode=guest'); setIsHome(true); setView('welcome') }}>Continue as guest <span aria-hidden="true">→</span></button><span>Browse and order without creating an account.</span></div>}
         <p className="card-footnote">Join thousands of food lovers and explore<br />the best food near you.</p>
       </section>
     </div>
