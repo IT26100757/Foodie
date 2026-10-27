@@ -21,7 +21,7 @@ public class SecurityConfig {
                         )
                 )
                 .authorizeHttpRequests(auth -> auth
-                        
+
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/merchants/register",

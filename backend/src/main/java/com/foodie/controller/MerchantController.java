@@ -1,4 +1,3 @@
-
 package com.foodie.controller;
 
 import com.foodie.dto.MerchantLoginRequest;
