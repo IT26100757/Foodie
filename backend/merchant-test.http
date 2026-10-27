@@ -1,0 +1,14 @@
+
+POST http://localhost:8081/api/merchants/register
+Content-Type: application/json
+
+{
+  "firstName": "Test",
+  "lastName": "Merchant",
+  "nationalId": "200012345678",
+  "email": "foodie.test001@example.com",
+  "restaurantName": "Foodie Test Restaurant",
+  "restaurantAddress": "Kiribathgoda, Sri Lanka",
+  "restaurantPhone": "0771234567",
+  "password": "TestPassword123!"
+}
