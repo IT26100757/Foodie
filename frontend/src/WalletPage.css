@@ -232,3 +232,117 @@
 .dashboard-shell.dark-theme .wallet-report-table small { color:#aaa49a; }
 .dashboard-shell.dark-theme .wallet-report-period-menu { box-shadow:0 12px 30px #0006; }
 @media(max-width:900px) { .dashboard-shell.dark-theme .wallet-right-column { color:#eee9e1; } }
+
+/* Business Analysis hover tooltip */
+
+.wallet-chart-month {
+    position: relative;
+    cursor: pointer;
+    outline-offset: 4px;
+}
+
+.wallet-chart-tooltip {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translate(-50%, 8px);
+    z-index: 20;
+    width: 200px;
+    padding: 14px;
+    background: #fff;
+    border: 1px solid #eee7e0;
+    border-radius: 12px;
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.13);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity .18s ease, transform .18s ease;
+}
+
+.wallet-chart-month:hover .wallet-chart-tooltip,
+.wallet-chart-month:focus-visible .wallet-chart-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, 0);
+}
+
+.wallet-chart-tooltip.tooltip-first {
+    left: 0;
+    transform: translate(0, 8px);
+}
+
+.wallet-chart-month:hover .wallet-chart-tooltip.tooltip-first,
+.wallet-chart-month:focus-visible .wallet-chart-tooltip.tooltip-first {
+    transform: translate(0, 0);
+}
+
+.wallet-chart-tooltip.tooltip-last {
+    left: auto;
+    right: 0;
+    transform: translate(0, 8px);
+}
+
+.wallet-chart-month:hover .wallet-chart-tooltip.tooltip-last,
+.wallet-chart-month:focus-visible .wallet-chart-tooltip.tooltip-last {
+    transform: translate(0, 0);
+}
+
+.wallet-chart-tooltip > strong {
+    display: block;
+    font-size: 13px;
+    margin-bottom: 12px;
+    color: #252525;
+}
+
+.wallet-tooltip-row,
+.wallet-tooltip-row > span {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.wallet-tooltip-row {
+    justify-content: space-between;
+    margin-top: 9px;
+    font-size: 11px;
+    color: #777;
+}
+
+.wallet-tooltip-row b {
+    color: #252525;
+    font-size: 11px;
+}
+
+.wallet-tooltip-row i {
+    width: 9px;
+    height: 9px;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.tooltip-sales { background: #ff6934; }
+.tooltip-charge { background: #f5ba57; }
+.tooltip-net { background: #153d30; }
+.wallet-remove-account {
+    border: none;
+    background: #fff0ed;
+    color: #d63b32;
+    border-radius: 10px;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    font-size: 20px;
+}
+
+.wallet-remove-account:hover {
+    background: #ffdcd6;
+}
+/* Keep receipt branding clear of the close button */
+.wallet-receipt-brand {
+    padding-right: 50px;
+    box-sizing: border-box;
+}
+
+.wallet-receipt-brand small {
+    white-space: nowrap;
+}

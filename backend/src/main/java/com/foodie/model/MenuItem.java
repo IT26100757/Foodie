@@ -2,6 +2,8 @@ package com.foodie.model;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "menu_items")
@@ -23,6 +25,13 @@ public class MenuItem {
 
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
+
+    @OneToMany(
+            mappedBy = "menuItem",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private List<MenuItemSize> sizes = new ArrayList<>();
 
     private String category;
 
@@ -93,5 +102,21 @@ public class MenuItem {
 
     public void setAvailable(boolean available) {
         this.available = available;
+    }
+
+    public List<MenuItemSize> getSizes() {
+        return sizes;
+    }
+
+    public void addSize(MenuItemSize size) {
+        size.setMenuItem(this);
+        sizes.add(size);
+    }
+
+    public void clearSizes() {
+        for (MenuItemSize size : sizes) {
+            size.setMenuItem(null);
+        }
+        sizes.clear();
     }
 }

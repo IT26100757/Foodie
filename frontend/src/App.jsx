@@ -92,12 +92,56 @@ function LoginPortal({ onRegister, onLogin }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  function submit(event) {
-    event.preventDefault(); setError('')
-    if (!identifier.trim() || !password) { setError('Enter your email or account ID and password to continue.'); return }
-    setLoading(true)
-    window.setTimeout(() => { onLogin(identifier.includes('@') ? identifier.split('@')[0] : identifier); setLoading(false) }, 650)
+  async function submit(event) {
+  event.preventDefault()
+  setError('')
+
+  if (!identifier.trim() || !password) {
+    setError('Enter your email and password to continue.')
+    return
   }
+
+    setLoading(true)
+
+  try {
+    // STEP 1: Get CSRF token
+    const csrfResponse = await fetch('/api/csrf', {
+      credentials: 'include',
+    })
+
+    if (!csrfResponse.ok) {
+      throw new Error('Unable to initialize secure login.')
+    }
+
+    const csrf = await csrfResponse.json()
+
+    // STEP 2: Login with CSRF token
+    const response = await fetch('/api/merchants/login', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        [csrf.headerName]: csrf.token,
+      },
+      body: JSON.stringify({
+        email: identifier.trim(),
+        password: password,
+      }),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Login failed')
+    }
+
+    onLogin(data.firstName)
+  } catch (error) {
+    setError(error.message || 'Unable to connect to the server.')
+  } finally {
+    setLoading(false)
+  }
+}
 
   return <main className="portal-page">
     <header className="topbar"><Brand /><div className="topbar-login"><span>New to Foodie?</span><button className="login-link" type="button" onClick={onRegister}>Create an account</button></div></header>
@@ -134,8 +178,154 @@ function LoginPortal({ onRegister, onLogin }) {
 function MerchantDashboard({ merchantName, onSignOut }) {
   const [active, setActive] = useState('Home')
   const [chartMetric, setChartMetric] = useState('Sales')
+  const [hoveredPoint, setHoveredPoint] = useState(null)
   const [dateRange, setDateRange] = useState('Last 7 days')
   const [orders, setOrders] = useState([])
+  const [orderActionError, setOrderActionError] = useState('')
+  const [updatingOrderIds, setUpdatingOrderIds] = useState([])
+const [restaurantId, setRestaurantId] = useState(null)
+const [dashboardStats, setDashboardStats] = useState(null)
+  const [performanceData, setPerformanceData] = useState(null)
+  const [topSellingItems, setTopSellingItems] = useState([])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadDashboard() {
+      try {
+        const restaurantResponse = await fetch('/api/merchant/restaurants', {
+          credentials: 'include',
+        })
+
+        if (!restaurantResponse.ok) {
+          throw new Error('Could not load restaurants')
+        }
+
+        const restaurants = await restaurantResponse.json()
+        const id = restaurants[0]?.id
+
+        if (!id || cancelled) return
+
+        setRestaurantId(id)
+
+        const [ordersResponse, dashboardResponse] = await Promise.all([
+          fetch(`/api/merchant/restaurants/${id}/orders`, {
+            credentials: 'include',
+          }),
+          fetch(`/api/merchant/restaurants/${id}/orders/dashboard`, {
+            credentials: 'include',
+          }),
+        ])
+
+        if (!ordersResponse.ok || !dashboardResponse.ok) {
+          throw new Error('Could not load dashboard data')
+        }
+
+        const [orderData, stats] = await Promise.all([
+          ordersResponse.json(),
+          dashboardResponse.json(),
+        ])
+
+        if (!cancelled) {
+          setOrders(orderData)
+          setDashboardStats(stats)
+        }
+      } catch (error) {
+        console.error('Foodie dashboard loading failed:', error)
+      }
+    }
+
+    loadDashboard()
+
+    const refreshInterval = setInterval(() => {
+      if (!document.hidden) {
+        loadDashboard()
+      }
+    }, 30000)
+
+    return () => {
+      cancelled = true
+      clearInterval(refreshInterval)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!restaurantId) return
+
+    let cancelled = false
+    const days = dateRange === 'Last 30 days' ? 30 : 7
+
+    async function loadPerformance() {
+      try {
+        setPerformanceData(null)
+
+        const response = await fetch(
+            `/api/merchant/restaurants/${restaurantId}/orders/performance?days=${days}`,
+            { credentials: 'include' }
+        )
+
+        if (!response.ok) {
+          throw new Error('Could not load business performance')
+        }
+
+        const data = await response.json()
+
+        if (!cancelled) {
+          setPerformanceData(data)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Business performance loading failed:', error)
+        }
+      }
+    }
+
+    loadPerformance()
+
+    return () => {
+      cancelled = true
+    }
+  }, [restaurantId, dateRange])
+
+  useEffect(() => {
+    if (!restaurantId) return
+
+    let cancelled = false
+
+    async function loadTopSellingItems() {
+      try {
+        const response = await fetch(
+            `/api/merchant/restaurants/${restaurantId}/orders/top-selling`,
+            { credentials: 'include' }
+        )
+
+        if (!response.ok) {
+          throw new Error('Failed to load top selling items')
+        }
+
+        const data = await response.json()
+
+        if (!cancelled) {
+          setTopSellingItems(data)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Top Selling Items error:', error)
+        }
+      }
+    }
+
+    loadTopSellingItems()
+
+    const interval = setInterval(() => {
+      if (!document.hidden) loadTopSellingItems()
+    }, 30000)
+
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [restaurantId])
   const [notifications, setNotifications] = useState([])
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [orderSoundEnabled, setOrderSoundEnabled] = useState(false)
@@ -185,6 +375,67 @@ function MerchantDashboard({ merchantName, onSignOut }) {
     setNotificationsOpen(true)
   }
 
+
+  async function updateOrderStatus(orderId, newStatus) {
+    if (!restaurantId || updatingOrderIds.includes(orderId)) return
+
+    setOrderActionError('')
+    setUpdatingOrderIds((current) => [...current, orderId])
+
+    try {
+      const csrfResponse = await fetch('/api/csrf', {
+        credentials: 'include'
+      })
+
+      if (!csrfResponse.ok) {
+        throw new Error('Could not initialize secure request')
+      }
+
+      const csrf = await csrfResponse.json()
+
+      const response = await fetch(
+          `/api/merchant/restaurants/${restaurantId}/orders/${orderId}/status`,
+          {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              [csrf.headerName]: csrf.token
+            },
+            body: JSON.stringify({ status: newStatus })
+          }
+      )
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to update order')
+      }
+
+      setOrders((current) =>
+          current.map((order) =>
+              String(order.id) === String(orderId) ? data : order
+          )
+      )
+
+      // Refresh dashboard statistics after a successful update
+      const dashboardResponse = await fetch(
+          `/api/merchant/restaurants/${restaurantId}/orders/dashboard`,
+          { credentials: 'include' }
+      )
+
+      if (dashboardResponse.ok) {
+        setDashboardStats(await dashboardResponse.json())
+      }
+    } catch (error) {
+      setOrderActionError(error.message || 'Unable to update order')
+    } finally {
+      setUpdatingOrderIds((current) =>
+          current.filter((id) => id !== orderId)
+      )
+    }
+  }
+
   function updateAdditionalCharge(orderId, value) {
     setOrders((current) => current.map((order) => {
       if (String(order.id) !== String(orderId) || order.customerAgreedToAdditionalCharges !== true) return order
@@ -207,14 +458,561 @@ function MerchantDashboard({ merchantName, onSignOut }) {
       <header className="dashboard-topbar"><div className="breadcrumb">Workspace <span>/</span> {active}</div><div className="dashboard-top-actions"><NotificationsMenu notifications={notifications} open={notificationsOpen} setOpen={setNotificationsOpen} onClear={() => setNotifications([])} onDismiss={(id) => setNotifications((current) => current.filter((item) => item.id !== id))} onSelect={(notification) => setActive(notification?.type === 'wallet-transaction' ? 'Wallet' : 'Orders')} /><span className="topbar-divider" />{active === 'Wallet' && <span className="wallet-merchant-label">{merchantName || 'Merchant'}<small>Merchant account</small></span>}<span className="top-avatar">{(merchantName || 'M').slice(0, 1).toUpperCase()}</span></div></header>
       {active === 'Home' ? <div className="dashboard-content">
         <div className="dashboard-heading-row"><div><span className="dashboard-kicker">YOUR BUSINESS AT A GLANCE</span><h1>Good afternoon{merchantName ? `, ${merchantName}` : ''}<span>.</span></h1><p>Here’s what’s happening with your restaurant.</p></div><button className="date-select" type="button" onClick={() => setDateRange((range) => range === 'Last 7 days' ? 'Last 30 days' : 'Last 7 days')}><Icon name="calendar" size={16} />{dateRange}<Icon name="chevronDown" size={14} className="date-chevron" /></button></div>
-        <div className="metric-grid">{[['Total Sales', 'trend', 'red'], ['Total Orders', 'orders', 'yellow'], ['Average Order Value', 'coins', 'peach'], ['Total Customers', 'customers', 'mint']].map(([label, icon, tone]) => <article className="metric-card" key={label}><div className="metric-top"><span>{label}</span><i className={`metric-icon ${tone}`}><Icon name={icon} size={18} /></i></div><strong className="metric-empty">—</strong></article>)}</div>
-        <section className="dashboard-card sales-card"><div className="card-heading"><div><h2>Business performance</h2><p>Track your restaurant over time</p></div><div className="chart-toggles" role="group" aria-label="Chart metric">{['Sales', 'Orders', 'Average Order Value'].map((metric) => <button type="button" key={metric} className={chartMetric === metric ? 'selected' : ''} onClick={() => setChartMetric(metric)}>{metric}</button>)}</div></div><div className="chart-empty"><div className="chart-y-axis"><span>—</span><span>—</span><span>—</span><span>—</span></div><div className="chart-grid-lines"><i /><i /><i /><i /><div className="chart-empty-message"><span><Icon name="chart" size={20} /></span></div></div></div></section>
-        <div className="insights-grid"><section className="dashboard-card insight-card"><div className="card-heading"><div><h2>Top Eats</h2><p>What customers are enjoying</p></div><span className="card-spark"><Icon name="sparkle" size={19} /></span></div><EmptyState icon="plate" /></section>
-          <section className="dashboard-card insight-card"><div className="card-heading"><div><h2>Top Selling Items</h2><p>Your best performers</p></div><button type="button" className="subtle-link" onClick={() => setActive('Menu')}>View menu →</button></div><EmptyState icon="orders" /></section>
-          <section className="dashboard-card insight-card"><div className="card-heading"><div><h2>Customers</h2><p>New and repeat visitors</p></div></div><div className="customer-legend"><span><i className="legend-new" />New customers</span><span><i className="legend-repeat" />Repeat customers</span></div><div className="customer-empty"><div className="donut-empty"><span>—</span></div><p>Customer insights will appear here when available.</p></div></section>
+<div className="metric-grid">
+  {[
+    [
+      'Total Sales',
+      'trend',
+      'red',
+      dashboardStats
+        ? `Rs. ${Number(dashboardStats.deliveredRevenue || 0).toLocaleString('en-LK')}`
+        : '—'
+    ],
+    [
+      'Total Orders',
+      'orders',
+      'yellow',
+      dashboardStats ? dashboardStats.totalOrders : '—'
+    ],
+    [
+      'Average Order Value',
+      'coins',
+      'peach',
+      dashboardStats && dashboardStats.deliveredOrders > 0
+        ? `Rs. ${(Number(dashboardStats.deliveredRevenue || 0) /
+            dashboardStats.deliveredOrders).toLocaleString('en-LK')}`
+        : '—'
+    ],
+    [
+      'Total Customers',
+      'customers',
+      'mint',
+      new Set(
+          orders
+              .map((order) => order.customerPhone?.trim())
+              .filter(Boolean)
+      ).size
+    ]
+  ].map(([label, icon, tone, value]) => (
+    <article className="metric-card" key={label}>
+      <div className="metric-top">
+        <span>{label}</span>
+        <i className={`metric-icon ${tone}`}>
+          <Icon name={icon} size={18} />
+        </i>
+      </div>
+      <strong className={value === '—' ? 'metric-empty' : ''}>
+        {value}
+      </strong>
+    </article>
+  ))}
+</div>
+
+
+        <section className="dashboard-card sales-card">
+          <div className="card-heading">
+            <div>
+              <h2>Business performance</h2>
+              <p>Track your restaurant over time</p>
+            </div>
+
+            <div
+                className="chart-toggles"
+                role="group"
+                aria-label="Chart metric"
+            >
+              {['Sales', 'Orders', 'Average Order Value'].map((metric) => (
+                  <button
+                      type="button"
+                      key={metric}
+                      className={chartMetric === metric ? 'selected' : ''}
+                      onClick={() => setChartMetric(metric)}
+                  >
+                    {metric}
+                  </button>
+              ))}
+            </div>
+          </div>
+
+          {(() => {
+            const daily = performanceData?.dailyPerformance ?? []
+
+            const values = daily.map((day) => {
+              const sales = Number(day.sales ?? 0)
+              const ordersCount = Number(day.orders ?? 0)
+
+              if (chartMetric === 'Orders') return ordersCount
+
+              if (chartMetric === 'Average Order Value') {
+                const ordersOnDay = orders.filter(
+                    (order) => order.createdAt?.slice(0, 10) === day.date
+                )
+
+                if (ordersOnDay.length === 0) return 0
+
+                const total = ordersOnDay.reduce(
+                    (sum, order) => sum + Number(order.totalAmount ?? 0),
+                    0
+                )
+
+                return total / ordersOnDay.length
+              }
+
+              return sales
+            })
+
+            const maxValue = Math.max(1, ...values)
+            const chartWidth = 700
+            const chartHeight = 240
+            const paddingLeft = 65
+            const paddingRight = 20
+            const paddingTop = 20
+            const paddingBottom = 45
+
+            const plotWidth = chartWidth - paddingLeft - paddingRight
+            const plotHeight = chartHeight - paddingTop - paddingBottom
+
+            const formatValue = (value) =>
+                chartMetric === 'Orders'
+                    ? Math.round(value).toLocaleString('en-LK')
+                    : `Rs. ${Math.round(value).toLocaleString('en-LK')}`
+
+            const points = values.map((value, index) => {
+              const x =
+                  paddingLeft +
+                  (daily.length > 1
+                      ? (index / (daily.length - 1)) * plotWidth
+                      : plotWidth / 2)
+
+              const y =
+                  paddingTop + plotHeight - (value / maxValue) * plotHeight
+
+              return { x, y, value }
+            })
+
+            // Smooth monotone curve: avoids artificial overshooting between daily values
+            const smoothPath = (() => {
+              if (!points.length) return ''
+              if (points.length === 1) {
+                return `M ${points[0].x} ${points[0].y}`
+              }
+
+              const slopes = points.slice(1).map((point, i) => {
+                const previous = points[i]
+                return (point.y - previous.y) / (point.x - previous.x)
+              })
+
+              const tangents = points.map((_, i) => {
+                if (i === 0) return slopes[0]
+                if (i === points.length - 1) return slopes[slopes.length - 1]
+
+                const left = slopes[i - 1]
+                const right = slopes[i]
+
+                if (left * right <= 0) return 0
+
+                return (2 * left * right) / (left + right)
+              })
+
+              let path = `M ${points[0].x} ${points[0].y}`
+
+              for (let i = 0; i < points.length - 1; i++) {
+                const start = points[i]
+                const end = points[i + 1]
+                const dx = end.x - start.x
+
+                path += ` C ${start.x + dx / 3} ${start.y + tangents[i] * dx / 3}` +
+                    ` ${end.x - dx / 3} ${end.y - tangents[i + 1] * dx / 3}` +
+                    ` ${end.x} ${end.y}`
+              }
+
+              return path
+            })()
+
+            const activePoint =
+                hoveredPoint !== null ? points[hoveredPoint] : null
+
+            const activeDay =
+                hoveredPoint !== null ? daily[hoveredPoint] : null
+
+            return daily.length > 0 ? (
+                <div style={{ width: '100%', paddingTop: 16 }}>
+                  <svg
+                      viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+                      width="100%"
+                      role="img"
+                      aria-label={`${chartMetric} performance over ${daily.length} days`}
+                      style={{ overflow: 'visible' }}
+                  >
+                    {[0, 0.25, 0.5, 0.75, 1].map((fraction) => {
+                      const y =
+                          paddingTop + plotHeight - fraction * plotHeight
+
+                      return (
+                          <g key={fraction}>
+                            <line
+                                x1={paddingLeft}
+                                y1={y}
+                                x2={chartWidth - paddingRight}
+                                y2={y}
+                                stroke="#e8e5df"
+                                strokeDasharray="4 5"
+                            />
+                            <text
+                                x={paddingLeft - 10}
+                                y={y + 4}
+                                textAnchor="end"
+                                fontSize="7"
+                                fill="#8a8680"
+                            >
+                              {formatValue(maxValue * fraction)}
+                            </text>
+                          </g>
+                      )
+                    })}
+
+                    <path
+                        d={smoothPath}
+                        fill="none"
+                        stroke="#ff6934"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                    />
+
+                    {activePoint && (
+                        <line
+                            x1={activePoint.x}
+                            y1={paddingTop}
+                            x2={activePoint.x}
+                            y2={paddingTop + plotHeight}
+                            stroke="#ff6934"
+                            strokeOpacity="0.35"
+                            strokeDasharray="4 4"
+                            pointerEvents="none"
+                        />
+                    )}
+
+                    {points.map((point, index) => (
+                        <g key={daily[index].date}>
+                          <circle
+                              cx={point.x}
+                              cy={point.y}
+                              r={hoveredPoint === index ? 7 : 5}
+                              fill="#ff6934"
+                              stroke="white"
+                              strokeWidth="2"
+                              pointerEvents="none"
+                          />
+
+                          <rect
+                              x={point.x - plotWidth / (points.length * 2)}
+                              y={paddingTop}
+                              width={plotWidth / points.length}
+                              height={plotHeight}
+                              fill="transparent"
+                              onMouseEnter={() => setHoveredPoint(index)}
+                              onMouseLeave={() => setHoveredPoint(null)}
+                          />
+
+                          <text
+                              x={point.x}
+                              y={chartHeight - 12}
+                              textAnchor="middle"
+                              fontSize="7"
+                              fill="#8a8680"
+                              pointerEvents="none"
+                              opacity={
+                                daily.length <= 7 ||
+                                index % Math.ceil(daily.length / 6) === 0 ||
+                                index === daily.length - 1
+                                    ? 1
+                                    : 0
+                              }
+                          >
+                            {new Date(
+                                `${daily[index].date}T00:00:00`
+                            ).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                            })}
+                          </text>
+                        </g>
+                    ))}
+
+                    {activePoint && activeDay && (() => {
+                      const tooltipWidth = 170
+                      const tooltipHeight = 78
+
+                      const tooltipX = Math.max(
+                          4,
+                          Math.min(
+                              chartWidth - tooltipWidth - 4,
+                              activePoint.x - tooltipWidth / 2
+                          )
+                      )
+
+                      const tooltipY =
+                          activePoint.y < 90
+                              ? activePoint.y + 14
+                              : activePoint.y - tooltipHeight - 14
+
+                      return (
+                          <g
+                              transform={`translate(${tooltipX}, ${tooltipY})`}
+                              pointerEvents="none"
+                          >
+                            <rect
+                                width={tooltipWidth}
+                                height={tooltipHeight}
+                                rx="10"
+                                fill="#153d30"
+                            />
+
+                            <text
+                                x="12"
+                                y="21"
+                                fill="#ffffff"
+                                fontSize="7"
+                                fontWeight="600"
+                            >
+                              {new Date(
+                                  `${activeDay.date}T00:00:00`
+                              ).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                              })}
+                            </text>
+
+                            <text
+                                x="12"
+                                y="41"
+                                fill="#ffb394"
+                                fontSize="10"
+                            >
+                              {chartMetric}
+                            </text>
+
+                            <text
+                                x="12"
+                                y="61"
+                                fill="#ffffff"
+                                fontSize="13"
+                                fontWeight="600"
+                            >
+                              {formatValue(activePoint.value)}
+                            </text>
+                          </g>
+                      )
+                    })()}
+                  </svg>
+                </div>
+            ) : (
+                <div className="chart-empty">
+                  <div className="chart-empty-message">
+          <span>
+            <Icon name="chart" size={20} />
+          </span>
+                    <p>No performance data available</p>
+                  </div>
+                </div>
+            )
+          })()}
+        </section>
+
+        <div className="insights-grid"><section className="dashboard-card insight-card"><div className="card-heading"><div><h2>Top Eats</h2><p>What customers are enjoying</p></div><span className="card-spark"><Icon name="sparkle" size={19} /></span></div>{topSellingItems.length > 0 ? (
+            <div style={{ display: 'grid', gap: 12, marginTop: 18 }}>
+              {[...topSellingItems]
+                  .sort((a, b) => Number(b.revenue) - Number(a.revenue))
+                  .map((item, index) => (
+                      <div
+                          key={`${item.itemName}-${index}`}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            gap: 12,
+                            padding: '12px 14px',
+                            background: '#faf8f5',
+                            borderRadius: 12
+                          }}
+                      >
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, color: '#153d30' }}>
+                            {index + 1}. {item.itemName}
+                          </div>
+                          <div
+                              style={{
+                                fontSize: 12,
+                                color: '#777',
+                                marginTop: 4
+                              }}
+                          >
+                            {item.quantitySold} sold
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <div style={{ fontWeight: 700, color: '#153d30' }}>
+                            Rs. {Number(item.revenue ?? 0).toLocaleString('en-LK')}
+                          </div>
+                          <div style={{ fontSize: 11, color: '#999' }}>
+                            Revenue
+                          </div>
+                        </div>
+                      </div>
+                  ))}
+            </div>
+        ) : (
+            <EmptyState icon="plate" />
+        )}</section>
+          <section className="dashboard-card insight-card"><div className="card-heading"><div><h2>Top Selling Items</h2><p>Your best performers</p></div><button type="button" className="subtle-link" onClick={() => setActive('Menu')}>View menu →</button></div>{topSellingItems.length > 0 ? (
+              <div style={{ display: 'grid', gap: 12, marginTop: 18 }}>
+                {[...topSellingItems]
+                    .sort((a, b) => Number(b.quantitySold) - Number(a.quantitySold))
+                    .map((item, index) => (
+                    <div
+                        key={`${item.itemName}-${index}`}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          gap: 12,
+                          padding: '12px 14px',
+                          background: '#faf8f5',
+                          borderRadius: 12
+                        }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, color: '#153d30' }}>
+                          {index + 1}. {item.itemName}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#777', marginTop: 4 }}>
+                          {item.quantitySold} sold
+                        </div>
+                      </div>
+
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <div style={{ fontWeight: 700, color: '#153d30' }}>
+                          Rs. {Number(item.revenue ?? 0).toLocaleString('en-LK')}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#999' }}>
+                          Revenue
+                        </div>
+                      </div>
+                    </div>
+                ))}
+              </div>
+          ) : (
+              <EmptyState icon="orders" />
+          )}</section>
+
+          <section className="dashboard-card insight-card">
+            <div className="card-heading">
+              <div>
+                <h2>Customers</h2>
+                <p>First-time vs repeat orders</p>
+              </div>
+            </div>
+
+            {(() => {
+              const sortedOrders = [...orders]
+                  .filter(order => order.customerPhone?.trim())
+                  .sort((a, b) =>
+                      new Date(a.createdAt) - new Date(b.createdAt) ||
+                      Number(a.id) - Number(b.id)
+                  )
+
+              const seen = new Set()
+              let firstTime = 0
+              let repeat = 0
+
+              sortedOrders.forEach(order => {
+                const phone = order.customerPhone.trim()
+
+                if (seen.has(phone)) {
+                  repeat++
+                } else {
+                  seen.add(phone)
+                  firstTime++
+                }
+              })
+
+              const total = firstTime + repeat
+              const firstPercent = total > 0 ? (firstTime / total) * 100 : 0
+
+              return (
+                  <>
+                    <div className="customer-legend">
+          <span>
+            <i className="legend-new" />
+            First-time orders: {firstTime}
+          </span>
+                      <span>
+            <i className="legend-repeat" />
+            Repeat orders: {repeat}
+          </span>
+                    </div>
+
+                    <div className="customer-empty">
+                      <div
+                          className="donut-empty"
+                          style={{
+                            width: 104,
+                            height: 104,
+                            border: 'none',
+                            borderRadius: '50%',
+                            flexShrink: 0,
+                            display: 'grid',
+                            placeItems: 'center',
+                            background: total > 0
+                                ? `conic-gradient(#ff6934 0% ${firstPercent}%, #ffc83d ${firstPercent}% 100%)`
+                                : '#f1eee9'
+                          }}
+                      >
+                        <div
+                            style={{
+                              width: 76,
+                              height: 76,
+                              borderRadius: '50%',
+                              background: '#fff',
+                              display: 'grid',
+                              placeItems: 'center'
+                            }}
+                        >
+              <span style={{
+                fontSize: 20,
+                fontWeight: 700,
+                color: '#153d30'
+              }}>
+                {total || '—'}
+              </span>
+                        </div>
+                      </div>
+
+                      <p>
+                        {total > 0
+                            ? `${firstPercent.toFixed(0)}% first-time · ${(100 - firstPercent).toFixed(0)}% repeat orders`
+                            : 'Customer insights will appear here when available.'}
+                      </p>
+                    </div>
+                  </>
+              )
+            })()}
+          </section>
+
           <section className="dashboard-card insight-card feedback-card"><div className="card-heading"><div><h2>Menu Item Feedback</h2><p>Hear what customers think</p></div><span className="feedback-stars"><Icon name="feedback" size={17} /></span></div><EmptyState icon="feedback" /></section>
         </div>
-      </div> : active === 'Orders' ? <OrdersPage orders={orders} onAdditionalChargeChange={updateAdditionalCharge} /> : active === 'Delivery' ? <DeliveryPage orders={orders} /> : active === 'Menu' ? <MenuPage /> : active === 'Wallet' ? <WalletPage orders={orders} onTransactionComplete={handleWalletTransaction} /> : active === 'Settings' ? <SettingsPage soundEnabled={orderSoundEnabled} onSoundChange={handleOrderSoundChange} theme={settingsTheme} onThemeChange={(value) => { setSettingsTheme(value); localStorage.setItem('foodie-theme', value) }} /> : <div className="dashboard-content section-content"><span className="dashboard-kicker">FOODIE MERCHANT WORKSPACE</span><h1>{active}<span>.</span></h1><section className="dashboard-card section-empty"><EmptyState /></section></div>}
+      </div> : active === 'Orders' ?
+          <OrdersPage
+              orders={orders}
+              onAdditionalChargeChange={updateAdditionalCharge}
+              onStatusChange={updateOrderStatus}
+              updatingOrderIds={updatingOrderIds}
+              orderActionError={orderActionError}
+              restaurantId={restaurantId}
+          />
+          : active === 'Delivery' ? <DeliveryPage orders={orders} /> : active === 'Menu' ? <MenuPage /> : active === 'Wallet' ? <WalletPage orders={orders} onTransactionComplete={handleWalletTransaction} /> : active === 'Settings' ? <SettingsPage soundEnabled={orderSoundEnabled} onSoundChange={handleOrderSoundChange} theme={settingsTheme} onThemeChange={(value) => { setSettingsTheme(value); localStorage.setItem('foodie-theme', value) }} /> : <div className="dashboard-content section-content"><span className="dashboard-kicker">FOODIE MERCHANT WORKSPACE</span><h1>{active}<span>.</span></h1><section className="dashboard-card section-empty"><EmptyState /></section></div>}
     </section>
   </main>
 }

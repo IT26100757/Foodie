@@ -16,6 +16,9 @@ public class OrderResponse {
     private final String status;
     private final BigDecimal totalAmount;
     private final LocalDateTime createdAt;
+    private final String paymentType;
+    private BigDecimal additionalCharge;
+    private String additionalChargeStatus;
 
     public OrderResponse(Order order) {
         this.id = order.getId();
@@ -27,6 +30,9 @@ public class OrderResponse {
         this.status = order.getStatus();
         this.totalAmount = order.getTotalAmount();
         this.createdAt = order.getCreatedAt();
+        this.paymentType = order.getPaymentMethod();
+        this.additionalCharge = order.getAdditionalCharge();
+        this.additionalChargeStatus = order.getAdditionalChargeStatus();
     }
 
     public Long getId() {
@@ -63,5 +69,25 @@ public class OrderResponse {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public String getPaymentType() {
+        return paymentType;
+    }
+
+    public BigDecimal getAdditionalCharge() {
+        return additionalCharge;
+    }
+
+    public void setAdditionalCharge(BigDecimal additionalCharge) {
+        this.additionalCharge = additionalCharge;
+    }
+
+    public String getAdditionalChargeStatus() {
+        return additionalChargeStatus;
+    }
+
+    public void setAdditionalChargeStatus(String additionalChargeStatus) {
+        this.additionalChargeStatus = additionalChargeStatus;
     }
 }

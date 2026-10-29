@@ -6,6 +6,7 @@ import com.foodie.repository.MenuItemRepository;
 import com.foodie.repository.RestaurantRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.foodie.model.MenuItemSize;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -30,7 +31,14 @@ public class MenuItemService {
 
         verifyRestaurantOwnership(merchantId, restaurantId);
 
-        return menuItemRepository.findByRestaurantId(restaurantId);
+        List<MenuItem> items =
+                menuItemRepository.findByRestaurantId(restaurantId);
+
+        for (MenuItem item : items) {
+            item.getSizes().size();
+        }
+
+        return items;
     }
 
     @Transactional
@@ -46,7 +54,9 @@ public class MenuItemService {
         newItem.setRestaurant(restaurant);
         copyDetails(item, newItem);
 
-        return menuItemRepository.save(newItem);
+        MenuItem saved = menuItemRepository.save(newItem);
+        saved.getSizes().size();
+        return saved;
     }
 
     @Transactional
@@ -61,7 +71,9 @@ public class MenuItemService {
         validateItem(changes);
         copyDetails(changes, existing);
 
-        return menuItemRepository.save(existing);
+        MenuItem saved = menuItemRepository.save(existing);
+        saved.getSizes().size();
+        return saved;
     }
 
     @Transactional
@@ -74,7 +86,9 @@ public class MenuItemService {
         MenuItem item = getOwnedItem(restaurantId, itemId);
         item.setAvailable(available);
 
-        return menuItemRepository.save(item);
+        MenuItem saved = menuItemRepository.save(item);
+        saved.getSizes().size();
+        return saved;
     }
 
     @Transactional
@@ -129,6 +143,8 @@ public class MenuItemService {
         }
     }
 
+
+
     private void copyDetails(MenuItem source, MenuItem target) {
         target.setName(source.getName().trim());
         target.setDescription(source.getDescription());
@@ -136,5 +152,34 @@ public class MenuItemService {
         target.setCategory(source.getCategory());
         target.setImageUrl(source.getImageUrl());
         target.setAvailable(source.isAvailable());
+
+        // Remove sizes that are no longer selected
+        target.getSizes().removeIf(existingSize ->
+                source.getSizes().stream().noneMatch(newSize ->
+                        newSize.getSizeName().equals(existingSize.getSizeName())
+                )
+        );
+
+        // Update existing sizes or add new ones
+        for (MenuItemSize newSize : source.getSizes()) {
+
+            MenuItemSize existingSize = target.getSizes()
+                    .stream()
+                    .filter(size ->
+                            size.getSizeName().equals(newSize.getSizeName())
+                    )
+                    .findFirst()
+                    .orElse(null);
+
+            if (existingSize != null) {
+                existingSize.setPrice(newSize.getPrice());
+            } else {
+                MenuItemSize size = new MenuItemSize();
+                size.setSizeName(newSize.getSizeName());
+                size.setPrice(newSize.getPrice());
+
+                target.addSize(size);
+            }
+        }
     }
 }

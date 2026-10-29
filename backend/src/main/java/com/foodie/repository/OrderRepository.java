@@ -1,4 +1,3 @@
-
 package com.foodie.repository;
 
 import com.foodie.model.Order;
@@ -14,4 +13,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByIdAndRestaurantId(Long orderId, Long restaurantId);
 
     long countByRestaurantId(Long restaurantId);
+
+    // Retrieve orders belonging to the authenticated merchant
+    List<Order> findByRestaurant_Merchant_IdAndStatus(
+            Long merchantId,
+            String status
+    );
 }

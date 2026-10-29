@@ -5,6 +5,8 @@ import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.util.List;
+import jakarta.validation.Valid;
 
 import java.math.BigDecimal;
 
@@ -17,7 +19,6 @@ public class MenuItemRequest {
     @Size(max = 1000)
     private String description;
 
-    @NotNull(message = "Price is required")
     @DecimalMin(value = "0.00", message = "Price cannot be negative")
     @Digits(integer = 8, fraction = 2)
     private BigDecimal price;
@@ -25,10 +26,16 @@ public class MenuItemRequest {
     @Size(max = 255)
     private String category;
 
+    @NotBlank(message = "Menu item image is required")
     @Size(max = 2048)
     private String imageUrl;
 
     private boolean available = true;
+
+    private boolean sizesEnabled = false;
+
+    @Valid
+    private List<MenuItemSizeRequest> sizes;
 
     public MenuItemRequest() {
     }
@@ -79,5 +86,20 @@ public class MenuItemRequest {
 
     public void setAvailable(boolean available) {
         this.available = available;
+    }
+    public boolean isSizesEnabled() {
+        return sizesEnabled;
+    }
+
+    public void setSizesEnabled(boolean sizesEnabled) {
+        this.sizesEnabled = sizesEnabled;
+    }
+
+    public List<MenuItemSizeRequest> getSizes() {
+        return sizes;
+    }
+
+    public void setSizes(List<MenuItemSizeRequest> sizes) {
+        this.sizes = sizes;
     }
 }

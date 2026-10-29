@@ -37,7 +37,10 @@ public class SecurityConfig {
                         .requestMatchers("/login", "/error")
                         .permitAll()
 
-                        .requestMatchers("/api/merchant/**")
+                        .requestMatchers(
+                                "/api/merchant/**",
+                                "/api/wallet/**"
+                        )
                         .hasRole("MERCHANT")
 
                         .anyRequest().authenticated()

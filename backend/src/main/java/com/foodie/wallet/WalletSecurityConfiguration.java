@@ -16,11 +16,8 @@ public class WalletSecurityConfiguration {
 
         http
                 .securityMatcher("/api/wallet/**")
-                .csrf(csrf -> csrf
-                        .ignoringRequestMatchers("/api/wallet/**")
-                )
                 .authorizeHttpRequests(auth -> auth
-                        .anyRequest().authenticated()
+                        .anyRequest().hasRole("MERCHANT")
                 );
 
         return http.build();

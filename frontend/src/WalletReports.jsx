@@ -47,25 +47,44 @@ const readItems = (items) => {
   }).join(', ')
 }
 function reportRow(order) {
-  const customerAgreed = order.customerAgreedToAdditionalCharges === true
-  const total = numeric(order.total)
-  const additional = customerAgreed ? numeric(order.additionalCharge) : 0
+  const total = numeric(order.totalAmount ?? order.total)
+
+  const approved = String(
+      order.additionalChargeStatus || ''
+  ).toUpperCase() === 'APPROVED'
+
+  const additional = approved
+      ? numeric(order.additionalCharge)
+      : 0
+
   const net = total + additional
   const fee = Math.round(net * 0.1 * 100) / 100
+
+  const rawDate = order.createdAt || order.date || ''
+  const date = String(rawDate).slice(0, 10)
+
   return {
     id: order.id ?? '—',
     items: readItems(order.items),
-    date: order.date || '—',
-    time: order.time || '—',
+    date,
+    time: order.time || (
+        order.createdAt
+            ? String(order.createdAt).slice(11, 16)
+            : '—'
+    ),
     total,
     additional,
     net,
     fee,
     currency: order.currency || 'LKR',
-    status: order.status || 'Pending',
+    status: order.status || 'NEW',
   }
 }
-function isCompleted(status) { return ['complete', 'completed'].includes(String(status || '').toLowerCase()) }
+function isCompleted(status) {
+  return ['complete', 'completed', 'delivered'].includes(
+      String(status || '').toLowerCase()
+  )
+}
 function isRejected(status) { return ['reject', 'rejected', 'cancelled', 'canceled'].includes(String(status || '').toLowerCase()) }
 
 export default function WalletReports({ orders = [], onClose }) {
@@ -85,7 +104,7 @@ export default function WalletReports({ orders = [], onClose }) {
     return () => { document.removeEventListener('pointerdown', closeOutside); document.removeEventListener('keydown', closeOnEscape) }
   }, [periodOpen])
   const rows = useMemo(() => orders.map(reportRow).filter((row, index) => {
-    const day = orderDay(orders[index]?.date)
+    const day = orderDay(row.date)
     const now = new Date()
     const from = rangeStart(range, now)
     const through = dayStart(now)
@@ -126,7 +145,7 @@ export default function WalletReports({ orders = [], onClose }) {
         <div><span className="wallet-report-filter-label">Order status</span><div className="wallet-report-statuses" role="group" aria-label="Filter report by order status">{statuses.map((item) => <button type="button" key={item} className={status === item ? 'selected' : ''} aria-pressed={status === item} onClick={() => setStatus(item)}>{item}</button>)}</div></div>
       </div>
       <div className="wallet-report-summary"><span><b>{rows.length}</b> orders</span><span>Order total <b>{money(totals.total)}</b></span><span>Additional charges <b>{money(totals.additional)}</b></span><span>Net total <b>{money(totals.net)}</b></span><span>Service charges (10%) <b>{money(totals.fee)}</b></span></div>
-      <div className="wallet-report-table-wrap"><table className="wallet-report-table"><thead><tr><th>Order ID</th><th>Order items</th><th>Date &amp; time</th><th>Total</th><th>Additional charges</th><th>Net total</th><th>Service charges</th><th>Status</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td>#{row.id}</td><td>{row.items}</td><td>{row.date}<small>{row.time}</small></td><td>{money(row.total, row.currency)}</td><td>{money(row.additional, row.currency)}</td><td>{money(row.net, row.currency)}</td><td>{money(row.fee, row.currency)}</td><td>{row.status}</td></tr>)}{!rows.length && <tr><td colSpan="8" className="wallet-report-empty">No orders match this period and status.</td></tr>}</tbody><tfoot><tr><th colSpan="3">Totals</th><th>{money(totals.total)}</th><th>{money(totals.additional)}</th><th>{money(totals.net)}</th><th>{money(totals.fee)}</th><th>{rows.length} orders</th></tr></tfoot></table></div>
+      <div className="wallet-report-table-wrap"><table className="wallet-report-table"><thead><tr><th>Order ID</th><th>Order items</th><th>Date & time</th><th>Total</th><th>Additional charges</th><th>Net total</th><th>Service charges</th><th>Status</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td>#{row.id}</td><td>{row.items}</td><td>{row.date}<small>{row.time}</small></td><td>{money(row.total, row.currency)}</td><td>{money(row.additional, row.currency)}</td><td>{money(row.net, row.currency)}</td><td>{money(row.fee, row.currency)}</td><td>{row.status}</td></tr>)}{!rows.length && <tr><td colSpan="8" className="wallet-report-empty">No orders match this period and status.</td></tr>}</tbody><tfoot><tr><th colSpan="3">Totals</th><th>{money(totals.total)}</th><th>{money(totals.additional)}</th><th>{money(totals.net)}</th><th>{money(totals.fee)}</th><th>{rows.length} orders</th></tr></tfoot></table></div>
       <div className="wallet-report-footer"><span>Service charges are calculated at 10% of net total.</span><div>{error && <small className="wallet-report-error" role="alert">{error}</small>}{['PDF', 'Word', 'Excel'].map((format) => <button type="button" key={format} disabled={Boolean(exporting)} onClick={() => exportAs(format)}>{exporting === format ? 'Preparing…' : `Export ${format}`}</button>)}</div></div>
     </section>
   </div>

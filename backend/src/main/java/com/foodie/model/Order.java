@@ -29,12 +29,22 @@ public class Order {
     @Column(name = "order_type", nullable = false, length = 20)
     private String orderType = "DELIVERY";
 
+    @Column(name = "payment_method", length = 30)
+    private String paymentMethod;
+
     @Column(nullable = false, length = 30)
     private String status = "NEW";
 
     @Column(name = "total_amount", nullable = false,
             precision = 10, scale = 2)
     private BigDecimal totalAmount;
+
+    @Column(name = "additional_charge", nullable = false,
+            precision = 10, scale = 2)
+    private BigDecimal additionalCharge = BigDecimal.ZERO;
+
+    @Column(name = "additional_charge_status", nullable = false, length = 20)
+    private String additionalChargeStatus = "NONE";
 
     @Column(name = "created_at", nullable = false,
             insertable = false, updatable = false)
@@ -87,6 +97,14 @@ public class Order {
         this.orderType = orderType;
     }
 
+    public String getPaymentMethod() {
+        return paymentMethod;
+    }
+
+    public void setPaymentMethod(String paymentMethod) {
+        this.paymentMethod = paymentMethod;
+    }
+
     public String getStatus() {
         return status;
     }
@@ -105,5 +123,21 @@ public class Order {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public BigDecimal getAdditionalCharge() {
+        return additionalCharge;
+    }
+
+    public void setAdditionalCharge(BigDecimal additionalCharge) {
+        this.additionalCharge = additionalCharge;
+    }
+
+    public String getAdditionalChargeStatus() {
+        return additionalChargeStatus;
+    }
+
+    public void setAdditionalChargeStatus(String additionalChargeStatus) {
+        this.additionalChargeStatus = additionalChargeStatus;
     }
 }

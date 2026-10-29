@@ -3,6 +3,7 @@ package com.foodie.service;
 
 import com.foodie.dto.DailyPerformanceResponse;
 import com.foodie.dto.MerchantPerformanceResponse;
+import com.foodie.dto.TopSellingItemResponse;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Map;
@@ -22,6 +23,8 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.Comparator;
 
 @Service
 public class OrderService {
@@ -285,5 +288,59 @@ public class OrderService {
                 dailyPerformance
         );
     }
+
+
+    @Transactional(readOnly = true)
+    public List<TopSellingItemResponse> getTopSellingItems(
+            Long merchantId, Long restaurantId) {
+
+        verifyRestaurantOwnership(merchantId, restaurantId);
+
+        List<OrderItem> items =
+                orderItemRepository.findByOrder_Restaurant_Id(restaurantId);
+
+        Map<String, TopSellingItemResponse> totals = new HashMap<>();
+
+        for (OrderItem item : items) {
+
+            if (!"DELIVERED".equals(item.getOrder().getStatus())) {
+                continue;
+            }
+
+            Long menuItemId = item.getMenuItem() != null
+                    ? item.getMenuItem().getId()
+                    : null;
+
+            String imageUrl = item.getMenuItem() != null
+                    ? item.getMenuItem().getImageUrl()
+                    : null;
+
+            String key = menuItemId != null
+                    ? "ID:" + menuItemId
+                    : "NAME:" + item.getItemName();
+
+            TopSellingItemResponse result = totals.computeIfAbsent(
+                    key,
+                    ignored -> new TopSellingItemResponse(
+                            menuItemId,
+                            item.getItemName(),
+                            imageUrl,
+                            0,
+                            BigDecimal.ZERO
+                    )
+            );
+
+            result.addSale(item.getQuantity(), item.getSubtotal());
+        }
+
+        return totals.values().stream()
+                .sorted(
+                        Comparator.comparingInt(
+                                TopSellingItemResponse::getQuantitySold
+                        ).reversed()
+                )
+                .toList();
+    }
+
 
 }

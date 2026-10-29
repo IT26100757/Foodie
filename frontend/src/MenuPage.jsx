@@ -13,6 +13,8 @@ function Icon({ name, size = 15 }) {
 
 export default function MenuPage() {
   const [items, setItems] = useState([])
+  const [loadingMenu, setLoadingMenu] = useState(true)
+  const [menuError, setMenuError] = useState('')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [draft, setDraft] = useState(blankItem)
@@ -27,6 +29,9 @@ export default function MenuPage() {
   const [sortOpen, setSortOpen] = useState(false)
   const sortFilterRef = useRef(null)
   const [imageError, setImageError] = useState('')
+  const [selectedImageFile, setSelectedImageFile] = useState(null)
+  const [savingItem, setSavingItem] = useState(false)
+  const [updatingAvailability, setUpdatingAvailability] = useState([])
   const [formError, setFormError] = useState('')
   const fileRef = useRef(null)
   const firstField = useRef(null)
@@ -50,6 +55,97 @@ export default function MenuPage() {
     return () => { document.removeEventListener('keydown', onKey); document.body.classList.remove('menu-drawer-open'); previous?.focus?.() }
     // Focus handling runs when the drawer opens/closes.
   }, [drawerOpen])
+
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadMenu() {
+      try {
+        setLoadingMenu(true)
+        setMenuError('')
+
+        const response = await fetch(
+            '/api/merchant/restaurants/5/menu',
+            { credentials: 'include' }
+        )
+
+        if (!response.ok) {
+          throw new Error(`Failed to load menu (${response.status})`)
+        }
+
+        const data = await response.json()
+
+        if (!Array.isArray(data)) {
+          throw new Error('Unexpected menu response')
+        }
+
+        const mappedItems = data.map((item) => ({
+          ...blankItem(),
+          id: item.id,
+          name: item.name ?? '',
+          category: item.category ?? '',
+          description: item.description ?? '',
+          price: String(item.price ?? ''),
+          image: item.imageUrl ?? '',
+          available: item.available ?? true,
+
+          sizesEnabled: item.sizesEnabled ?? false,
+
+          sizes: {
+            Small: {
+              selected: item.sizes?.some(
+                  (size) => size.sizeName === 'Small'
+              ) ?? false,
+              price: String(
+                  item.sizes?.find(
+                      (size) => size.sizeName === 'Small'
+                  )?.price ?? ''
+              )
+            },
+            Medium: {
+              selected: item.sizes?.some(
+                  (size) => size.sizeName === 'Medium'
+              ) ?? false,
+              price: String(
+                  item.sizes?.find(
+                      (size) => size.sizeName === 'Medium'
+                  )?.price ?? ''
+              )
+            },
+            Large: {
+              selected: item.sizes?.some(
+                  (size) => size.sizeName === 'Large'
+              ) ?? false,
+              price: String(
+                  item.sizes?.find(
+                      (size) => size.sizeName === 'Large'
+                  )?.price ?? ''
+              )
+            }
+          }
+        }));
+
+        if (!cancelled) {
+          setItems(mappedItems)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setMenuError(error.message)
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingMenu(false)
+        }
+      }
+    }
+
+    loadMenu()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     if (!availabilityOpen) return
@@ -98,9 +194,28 @@ export default function MenuPage() {
     }
   }, [categoryOpen])
   const categoryOptions = [...new Set(['All categories', 'Food', 'Beverages', 'Starters', 'Desserts', ...categories.filter((category) => !['Beverages', 'Desserts'].includes(category))])]
-  const selectedQuickCategory = categoryFilter === 'All categories' ? 'All items' : ['Food', 'Beverages', 'Starters', 'Desserts'].includes(categoryFilter) ? categoryFilter : ['Appetizers', 'Sides'].includes(categoryFilter) ? 'Starters' : categoryFilter === 'Beverages' ? 'Beverages' : categoryFilter === 'Desserts' ? 'Desserts' : 'Food'
+  const quickCategories = [
+    'All items',
+    'Food',
+    'Burgers',
+    'Main course',
+    'Beverages',
+    'Starters',
+    'Desserts'
+  ]
+
+  const selectedQuickCategory =
+      categoryFilter === 'All categories'
+          ? 'All items'
+          : ['Appetizers', 'Sides'].includes(categoryFilter)
+              ? 'Starters'
+              : quickCategories.includes(categoryFilter)
+                  ? categoryFilter
+                  : 'Food'
   const filtered = items.filter((item) => {
-    const matchesText = `${item.name} ${item.description}`.toLowerCase().includes(query.trim().toLowerCase())
+    const matchesText = item.name
+        .toLowerCase()
+        .startsWith(query.trim().toLowerCase())
     const category = item.category.toLowerCase()
     const matchesCategory = categoryFilter === 'All categories' || (categoryFilter === 'Food' && !['beverages', 'desserts'].includes(category)) || (categoryFilter === 'Beverages' && category === 'beverages') || (categoryFilter === 'Starters' && ['appetizers', 'sides'].includes(category)) || (categoryFilter === 'Desserts' && category === 'desserts') || item.category === categoryFilter
     return matchesText && matchesCategory && (availabilityFilter === 'All items' || (availabilityFilter === 'Available' ? item.available : !item.available))
@@ -110,8 +225,22 @@ export default function MenuPage() {
   else orderedItems.reverse()
 
   function closeDrawer() { setDrawerOpen(false); setFormError('') }
-  function openNew() { setEditingId(null); setDraft(blankItem()); setImageError(''); setFormError(''); setDrawerOpen(true) }
-  function editItem(item) { setEditingId(item.id); setDraft({ ...item, sizes: { ...item.sizes } }); setImageError(''); setFormError(''); setDrawerOpen(true) }
+  function openNew() {
+    setEditingId(null)
+    setDraft(blankItem())
+    setSelectedImageFile(null) // NEW
+    setImageError('')
+    setFormError('')
+    setDrawerOpen(true)
+  }
+  function editItem(item) {
+    setEditingId(item.id)
+    setDraft({ ...item, sizes: { ...item.sizes } })
+    setSelectedImageFile(null) // NEW
+    setImageError('')
+    setFormError('')
+    setDrawerOpen(true)
+  }
   function change(key, value) { setDraft((current) => ({ ...current, [key]: value })) }
   function setSize(name, key, value) { setDraft((current) => ({ ...current, sizes: { ...current.sizes, [name]: { ...current.sizes[name], [key]: value } } })) }
   function loadImage(event) {
@@ -120,30 +249,316 @@ export default function MenuPage() {
     if (!file.type.startsWith('image/')) { setImageError('Choose an image file.'); return }
     if (file.size > 8 * 1024 * 1024) { setImageError('Choose an image smaller than 8 MB.'); return }
     const reader = new FileReader()
-    reader.onload = () => { change('image', reader.result); setImageError('') }
+    reader.onload = () => {
+      setSelectedImageFile(file)
+      change('image', reader.result)
+      setImageError('')
+    }
     reader.onerror = () => setImageError('This image could not be opened. Try another file.')
     reader.readAsDataURL(file)
     event.target.value = ''
   }
-  function save(event) {
-    event.preventDefault()
-    const price = Number(draft.price)
-    if (!draft.name.trim() || !draft.category) { setFormError('Enter an item name and choose a category.'); return }
-    if (draft.sizesEnabled) {
-      const selected = sizeNames.filter((size) => draft.sizes[size].selected)
-      if (!selected.length || selected.some((size) => draft.sizes[size].price === '' || Number(draft.sizes[size].price) < 0)) { setFormError('Select at least one size and enter a price for each selected size.'); return }
-    } else if (draft.price === '' || !Number.isFinite(price) || price < 0) { setFormError('Enter a valid standard price.'); return }
-    const saved = { ...draft, id: editingId || crypto.randomUUID(), name: draft.name.trim(), description: draft.description.trim() }
-    setItems((current) => editingId ? current.map((item) => item.id === editingId ? saved : item) : [...current, saved])
-    closeDrawer()
+
+  async function toggleAvailability(item) {
+    if (updatingAvailability.includes(item.id)) return
+
+    setUpdatingAvailability((current) => [...current, item.id])
+    setMenuError('')
+
+    try {
+      // Get CSRF token
+      const csrfResponse = await fetch('/api/csrf', {
+        credentials: 'include'
+      })
+
+      if (!csrfResponse.ok) {
+        throw new Error('Unable to get security token')
+      }
+
+      const csrf = await csrfResponse.json()
+
+      // Save new availability to backend
+      const response = await fetch(
+          `/api/merchant/restaurants/5/menu/${item.id}/availability`,
+          {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              [csrf.headerName]: csrf.token
+            },
+            body: JSON.stringify({
+              available: !item.available
+            })
+          }
+      )
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null)
+
+        throw new Error(
+            errorData?.message ||
+            `Availability update failed (${response.status})`
+        )
+      }
+
+      // Get updated menu item
+      const updated = await response.json()
+
+      // Update React only after backend success
+      setItems((current) =>
+          current.map((entry) =>
+              entry.id === item.id
+                  ? { ...entry, available: updated.available }
+                  : entry
+          )
+      )
+
+    } catch (error) {
+      setMenuError(
+          error.message || 'Unable to update availability'
+      )
+    } finally {
+      setUpdatingAvailability((current) =>
+          current.filter((id) => id !== item.id)
+      )
+    }
   }
+
+  async function save(event) {
+    event.preventDefault()
+
+    if (savingItem) return
+
+    setFormError('')
+
+    const price = Number(draft.price)
+
+    if (!draft.name.trim() || !draft.category) {
+      setFormError('Enter an item name and choose a category.')
+      return
+    }
+
+    if (!selectedImageFile && !draft.image) {
+      setFormError('Please upload an item image.')
+      return
+    }
+
+    if (draft.sizesEnabled) {
+      const selectedSizes = sizeNames.filter(
+          (size) => draft.sizes[size].selected
+      )
+
+      if (selectedSizes.length === 0) {
+        setFormError('Select at least one size.')
+        return
+      }
+
+      const invalidSize = selectedSizes.find((size) => {
+        const value = draft.sizes[size].price
+        const amount = Number(value)
+
+        return (
+            value === '' ||
+            !Number.isFinite(amount) ||
+            amount < 0 ||
+            !Number.isInteger(amount * 100)
+        )
+      })
+
+      if (invalidSize) {
+        setFormError(`Enter a valid price for ${invalidSize}.`)
+        return
+      }
+    }
+
+    if (
+        !draft.sizesEnabled &&
+        (
+            draft.price === '' ||
+            !Number.isFinite(price) ||
+            price < 0 ||
+            !Number.isInteger(price * 100)
+        )
+    ) {
+      setFormError('Enter a valid standard price.')
+      return
+    }
+
+    setSavingItem(true)
+
+    try {
+      // 1. Get CSRF token
+      const csrfResponse = await fetch('/api/csrf', {
+        credentials: 'include'
+      })
+
+      if (!csrfResponse.ok) {
+        throw new Error('Unable to get security token')
+      }
+
+      const csrf = await csrfResponse.json()
+
+      // 2. Keep the existing image when editing
+      let imageUrl = draft.image?.startsWith('https://')
+          ? draft.image
+          : null
+
+      // 3. Upload a newly selected image
+      if (selectedImageFile) {
+        const formData = new FormData()
+        formData.append('file', selectedImageFile)
+
+        const uploadResponse = await fetch(
+            '/api/merchant/menu-images/upload',
+            {
+              method: 'POST',
+              credentials: 'include',
+              headers: {
+                [csrf.headerName]: csrf.token
+              },
+              body: formData
+            }
+        )
+
+        if (!uploadResponse.ok) {
+          throw new Error(
+              `Image upload failed (${uploadResponse.status})`
+          )
+        }
+
+        const uploadData = await uploadResponse.json()
+        imageUrl = uploadData.imageUrl
+      }
+
+      // 4. Prepare data for MySQL
+      // 4. Prepare data for MySQL
+      const payload = {
+        name: draft.name.trim(),
+        description: draft.description.trim(),
+        category: draft.category,
+        price: draft.sizesEnabled ? null : price,
+        sizesEnabled: draft.sizesEnabled,
+        sizes: draft.sizesEnabled
+            ? sizeNames
+                .filter((size) => draft.sizes[size].selected)
+                .map((size) => ({
+                  sizeName: size,
+                  price: Number(draft.sizes[size].price)
+                }))
+            : [],
+        imageUrl,
+        available: draft.available
+      }
+
+      // 5. Create or update the menu item
+      const endpoint = editingId
+          ? `/api/merchant/restaurants/5/menu/${editingId}`
+          : '/api/merchant/restaurants/5/menu'
+
+      const response = await fetch(endpoint, {
+        method: editingId ? 'PUT' : 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          [csrf.headerName]: csrf.token
+        },
+        body: JSON.stringify(payload)
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null)
+        throw new Error(
+            errorData?.message ||
+            `Failed to save menu item (${response.status})`
+        )
+      }
+
+      const saved = await response.json()
+
+      // 6. Update the existing UI
+      // 6. Update the existing UI
+      const mappedItem = {
+        ...blankItem(),
+        id: saved.id,
+        name: saved.name ?? '',
+        description: saved.description ?? '',
+        category: saved.category ?? '',
+        price: String(saved.price ?? ''),
+        image: saved.imageUrl ?? '',
+        available: saved.available ?? true,
+
+        sizesEnabled: saved.sizesEnabled ?? false,
+
+        sizes: Object.fromEntries(
+            sizeNames.map((sizeName) => {
+              const savedSize = saved.sizes?.find(
+                  (size) => size.sizeName === sizeName
+              )
+
+              return [
+                sizeName,
+                {
+                  selected: Boolean(savedSize),
+                  price: String(savedSize?.price ?? '')
+                }
+              ]
+            })
+        )
+      }
+
+      setItems((current) =>
+          editingId
+              ? current.map((item) =>
+                  item.id === saved.id ? mappedItem : item
+              )
+              : [...current, mappedItem]
+      )
+
+      setSelectedImageFile(null)
+      closeDrawer()
+
+    } catch (error) {
+      setFormError(error.message || 'Unable to save menu item')
+    } finally {
+      setSavingItem(false)
+    }
+  }
+
 
   return <div className="dashboard-content section-content menu-content">
     <div className="dashboard-heading-row menu-heading"><div><span className="dashboard-kicker">MENU MANAGEMENT</span><h1>Menu<span>.</span></h1><p>Manage the items customers can order from your restaurant.</p></div><button type="button" className="menu-add-button" onClick={openNew}><span aria-hidden="true">＋</span> Add Menu Item</button></div>
-    <div className="menu-category-tabs" role="group" aria-label="Quick menu categories">{['All items', 'Food', 'Beverages', 'Starters', 'Desserts'].map((category) => <button type="button" key={category} className={selectedQuickCategory === category ? 'selected' : ''} aria-pressed={selectedQuickCategory === category} onClick={() => setCategoryFilter(category === 'All items' ? 'All categories' : category)}>{category}</button>)}</div>
+    <div className="menu-category-tabs" role="group" aria-label="Quick menu categories">{quickCategories.map((category) => <button type="button" key={category} className={selectedQuickCategory === category ? 'selected' : ''} aria-pressed={selectedQuickCategory === category} onClick={() => setCategoryFilter(category === 'All items' ? 'All categories' : category)}>{category}</button>)}</div>
     <section className="menu-toolbar" aria-label="Menu item filters"><label className="menu-search"><span className="menu-search-icon" aria-hidden="true">⌕</span><span className="sr-only">Search menu items</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search menu items..." /></label><div className="menu-filter-dropdown" ref={categoryFilterRef}><button className={`menu-filter-trigger ${categoryOpen ? 'open' : ''}`} type="button" aria-haspopup="listbox" aria-expanded={categoryOpen} aria-label={`Category filter: ${categoryFilter}`} onClick={() => setCategoryOpen((open) => !open)}><span className="menu-filter-icon" aria-hidden="true"><Icon name="category" size={15} /></span><span>{categoryFilter}</span><span className="menu-filter-chevron" aria-hidden="true">⌄</span></button>{categoryOpen && <div className="menu-filter-popover" role="listbox" aria-label="Filter by category">{categoryOptions.map((option) => <button className={`menu-filter-option ${categoryFilter === option ? 'selected' : ''}`} type="button" role="option" aria-selected={categoryFilter === option} key={option} onClick={() => { setCategoryFilter(option); setCategoryOpen(false) }}><span>{option}</span><i aria-hidden="true">{categoryFilter === option ? '✓' : ''}</i></button>)}</div>}</div><div className="menu-filter-dropdown" ref={availabilityFilterRef}><button className={`menu-filter-trigger ${availabilityOpen ? 'open' : ''}`} type="button" aria-haspopup="listbox" aria-expanded={availabilityOpen} aria-label={`Availability filter: ${availabilityFilter}`} onClick={() => setAvailabilityOpen((open) => !open)}><span className="menu-filter-icon" aria-hidden="true"><Icon name="availability" size={15} /></span><span>{availabilityFilter}</span><span className="menu-filter-chevron" aria-hidden="true">⌄</span></button>{availabilityOpen && <div className="menu-filter-popover" role="listbox" aria-label="Filter by availability">{['All items', 'Available', 'Unavailable'].map((option) => <button className={`menu-filter-option ${availabilityFilter === option ? 'selected' : ''}`} type="button" role="option" aria-selected={availabilityFilter === option} key={option} onClick={() => { setAvailabilityFilter(option); setAvailabilityOpen(false) }}><span>{option}</span><i aria-hidden="true">{availabilityFilter === option ? '✓' : ''}</i></button>)}</div>}</div><div className="menu-filter-dropdown menu-sort-filter" ref={sortFilterRef}><button className={`menu-filter-trigger ${sortOpen ? 'open' : ''}`} type="button" aria-haspopup="listbox" aria-expanded={sortOpen} aria-label={`Sort menu items: ${sortBy}`} onClick={() => setSortOpen((open) => !open)}><span className="menu-filter-icon" aria-hidden="true"><Icon name="sort" size={15} /></span><span>{sortBy}</span><span className="menu-filter-chevron" aria-hidden="true">⌄</span></button>{sortOpen && <div className="menu-filter-popover" role="listbox" aria-label="Sort menu items">{['Recently added', 'Name A–Z'].map((option) => <button className={`menu-filter-option ${sortBy === option ? 'selected' : ''}`} type="button" role="option" aria-selected={sortBy === option} key={option} onClick={() => { setSortBy(option); setSortOpen(false) }}><span>{option}</span><i aria-hidden="true">{sortBy === option ? '✓' : ''}</i></button>)}</div>}</div></section>
     <section className="menu-items-area" aria-live="polite">
-      {items.length === 0 ? <div className="menu-empty dashboard-card"><span className="menu-empty-icon" aria-hidden="true">✳</span><h2>Your menu starts here</h2><p>Add your first menu item to begin building your restaurant’s menu.</p><button className="menu-add-button menu-empty-button" type="button" onClick={openNew}>＋ Add Menu Item</button></div> : filtered.length === 0 ? <div className="menu-no-results dashboard-card"><span className="menu-empty-icon" aria-hidden="true">⌕</span><h2>No matching items</h2><p>Try adjusting your search or filters.</p><button type="button" className="menu-text-button" onClick={() => { setQuery(''); setCategoryFilter('All categories'); setAvailabilityFilter('All items'); setSortBy('Recently added') }}>Clear filters</button></div> : <div className="menu-item-grid">{orderedItems.map((item) => <article className="menu-item-card dashboard-card" key={item.id}><div className="menu-item-image">{item.image ? <img src={item.image} alt="" /> : <span aria-hidden="true">✳</span>}<span className={`menu-availability ${item.available ? 'is-available' : ''}`}><i />{item.available ? 'Available' : 'Unavailable'}</span></div><div className="menu-item-copy"><div className="menu-item-title"><div><span className="menu-category-tag">{item.category}</span><h2>{item.name}</h2></div><button type="button" className="menu-edit-button" onClick={() => editItem(item)} aria-label={`Edit ${item.name}`}>Edit</button></div>{item.description && <p className="menu-item-description">{item.description}</p>}<div className="menu-item-footer"><span>{item.sizesEnabled ? sizeNames.filter((size) => item.sizes[size].selected).map((size) => `${size} · ${item.sizes[size].price}`).join('  /  ') : `Standard · ${item.price}`}</span><button type="button" className={`availability-toggle ${item.available ? 'on' : ''}`} role="switch" aria-checked={item.available} aria-label={`${item.available ? 'Mark' : 'Make'} ${item.name} ${item.available ? 'unavailable' : 'available'}`} onClick={() => setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, available: !entry.available } : entry))}><i /></button></div></div></article>)}</div>}
+      {loadingMenu && <p>Loading menu items...</p>}
+      {menuError && <p role="alert">{menuError}</p>}
+      {!loadingMenu && !menuError && items.length === 0 ? <div className="menu-empty dashboard-card"><span className="menu-empty-icon" aria-hidden="true">✳</span><h2>Your menu starts here</h2><p>Add your first menu item to begin building your restaurant’s menu.</p><button className="menu-add-button menu-empty-button" type="button" onClick={openNew}>＋ Add Menu Item</button></div> : filtered.length === 0 ? <div className="menu-no-results dashboard-card"><span className="menu-empty-icon" aria-hidden="true">⌕</span><h2>No matching items</h2><p>Try adjusting your search or filters.</p><button type="button" className="menu-text-button" onClick={() => { setQuery(''); setCategoryFilter('All categories'); setAvailabilityFilter('All items'); setSortBy('Recently added') }}>Clear filters</button></div> : <div className="menu-item-grid">{orderedItems.map((item) => <article className="menu-item-card dashboard-card" key={item.id}><div className="menu-item-image">{item.image ? <img src={item.image} alt="" /> : <span aria-hidden="true">✳</span>}<span className={`menu-availability ${item.available ? 'is-available' : ''}`}><i />{item.available ? 'Available' : 'Unavailable'}</span></div><div className="menu-item-copy"><div className="menu-item-title"><div><span className="menu-category-tag">{item.category}</span><h2>{item.name}</h2></div><button type="button" className="menu-edit-button" onClick={() => editItem(item)} aria-label={`Edit ${item.name}`}>Edit</button></div>{item.description && <p className="menu-item-description">{item.description}</p>}<div className="menu-item-footer"><span className="menu-price-display">
+  {item.sizesEnabled
+      ? `From Rs. ${Math.min(
+          ...sizeNames
+              .filter((size) => item.sizes[size].selected)
+              .map((size) => Number(item.sizes[size].price))
+      ).toLocaleString('en-LK', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })}`
+      : `Rs. ${Number(item.price).toLocaleString('en-LK', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })}`}
+</span><button
+          type="button"
+          className={`availability-toggle ${item.available ? 'on' : ''}`}
+          role="switch"
+          aria-checked={item.available}
+          aria-label={`${item.available ? 'Mark' : 'Make'} ${item.name} ${item.available ? 'unavailable' : 'available'}`}
+          disabled={updatingAvailability.includes(item.id)}
+          aria-busy={updatingAvailability.includes(item.id)}
+          onClick={() => toggleAvailability(item)}
+      >
+        <i />
+      </button></div></div></article>)}</div>}
     </section>
     {drawerOpen && <div className="menu-drawer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeDrawer() }}><aside className="menu-drawer" role="dialog" aria-modal="true" aria-labelledby="menu-drawer-title"><header className="menu-drawer-header"><div><span className="dashboard-kicker">MENU MANAGEMENT</span><h2 id="menu-drawer-title">{editingId ? 'Edit Menu Item' : 'Add New Menu Item'}</h2><p>Add the details customers will see on your menu.</p></div><button type="button" className="menu-close-button" onClick={closeDrawer} aria-label="Close panel">×</button></header>
       <form className="menu-drawer-form" onSubmit={save} noValidate><div className="menu-drawer-fields">
@@ -152,7 +567,18 @@ export default function MenuPage() {
         <section className="menu-form-section"><div className="menu-form-section-title"><span>3</span><div><h3>Pricing &amp; sizes</h3><p>Set a standard price or offer size choices.</p></div></div><div className="menu-switch-row"><span><strong>Size variations</strong><small>Offer different sizes with individual prices</small></span><button type="button" className={`settings-switch ${draft.sizesEnabled ? 'on' : ''}`} role="switch" aria-checked={draft.sizesEnabled} aria-label="Enable size variations" onClick={() => change('sizesEnabled', !draft.sizesEnabled)}><span /></button></div>{draft.sizesEnabled ? <div className="menu-size-list">{sizeNames.map((size) => <div className={`menu-size-row ${draft.sizes[size].selected ? 'selected' : ''}`} key={size}><label><input type="checkbox" checked={draft.sizes[size].selected} onChange={(event) => setSize(size, 'selected', event.target.checked)} /><span className="menu-checkbox" />{size}</label>{draft.sizes[size].selected && <label className="menu-size-price"><span className="sr-only">{size} price</span><span>LKR</span><input type="number" min="0" step="0.01" value={draft.sizes[size].price} onChange={(event) => setSize(size, 'price', event.target.value)} placeholder="0.00" /></label>}</div>)}</div> : <label className="menu-field menu-standard-price"><span>Standard price <b>*</b></span><div className="menu-price-input"><span>LKR</span><input type="number" min="0" step="0.01" value={draft.price} onChange={(event) => change('price', event.target.value)} placeholder="0.00" /></div></label>}</section>
         <section className="menu-form-section menu-availability-section"><div className="menu-form-section-title"><span>4</span><div><h3>Availability</h3><p>Control whether customers can order this item.</p></div></div><div className="menu-switch-row"><span><strong>Available to order</strong><small>{draft.available ? 'Customers can see and order this item.' : 'This item is hidden from ordering.'}</small></span><button type="button" className={`settings-switch ${draft.available ? 'on' : ''}`} role="switch" aria-checked={draft.available} aria-label="Item available to order" onClick={() => change('available', !draft.available)}><span /></button></div></section>
         {formError && <p className="menu-form-error" role="alert">{formError}</p>}
-      </div><footer className="menu-drawer-footer"><button type="button" className="menu-cancel-button" onClick={closeDrawer}>Cancel</button><button type="submit" className="menu-save-button">{editingId ? 'Save Changes' : 'Save Menu Item'} <span aria-hidden="true">→</span></button></footer></form>
+      </div><footer className="menu-drawer-footer"><button type="button" className="menu-cancel-button" onClick={closeDrawer}>Cancel</button><button
+          type="submit"
+          className="menu-save-button"
+          disabled={savingItem}
+      >
+        {savingItem
+            ? 'Saving...'
+            : editingId
+                ? 'Save Changes'
+                : 'Save Menu Item'}
+        <span aria-hidden="true">→</span>
+      </button></footer></form>
     </aside></div>}
   </div>
 }

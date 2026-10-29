@@ -1,15 +1,9 @@
 package com.foodie.wallet;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
+import com.foodie.model.Merchant;
 
 @Entity
 @Table(name = "wallet_transactions")
@@ -45,6 +39,11 @@ public class WalletTransaction {
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "merchant_id", nullable = false)
+    private Merchant merchant;
+
 
     protected WalletTransaction() {
     }
@@ -84,4 +83,11 @@ public class WalletTransaction {
     public Instant getUpdatedAt() { return updatedAt; }
     public void setStatus(WalletTransferStatus status) { this.status = status; }
     public void setFailureReason(String failureReason) { this.failureReason = failureReason; }
+    public Merchant getMerchant() {
+        return merchant;
+    }
+
+    public void setMerchant(Merchant merchant) {
+        this.merchant = merchant;
+    }
 }

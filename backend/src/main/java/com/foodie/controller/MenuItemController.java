@@ -2,6 +2,8 @@ package com.foodie.controller;
 
 import com.foodie.dto.MenuItemRequest;
 import com.foodie.dto.MenuItemResponse;
+import com.foodie.dto.MenuItemSizeRequest;
+import com.foodie.model.MenuItemSize;
 import com.foodie.model.MenuItem;
 import com.foodie.model.Merchant;
 import com.foodie.repository.MerchantRepository;
@@ -142,19 +144,78 @@ public class MenuItemController {
         return merchant.getId();
     }
 
+
     private MenuItem toMenuItem(MenuItemRequest request) {
 
         MenuItem item = new MenuItem();
 
         item.setName(request.getName());
         item.setDescription(request.getDescription());
-        item.setPrice(request.getPrice());
         item.setCategory(request.getCategory());
         item.setImageUrl(request.getImageUrl());
         item.setAvailable(request.isAvailable());
 
+        if (request.isSizesEnabled()) {
+
+            if (request.getSizes() == null ||
+                    request.getSizes().isEmpty()) {
+                throw new IllegalArgumentException(
+                        "Select at least one size");
+            }
+
+            java.util.Set<String> usedSizes =
+                    new java.util.HashSet<>();
+
+            java.math.BigDecimal lowestPrice = null;
+
+            for (MenuItemSizeRequest sizeRequest : request.getSizes()) {
+
+                String sizeName = sizeRequest.getSizeName();
+
+                if (sizeName == null ||
+                        !java.util.List.of("Small", "Medium", "Large")
+                                .contains(sizeName)) {
+                    throw new IllegalArgumentException(
+                            "Invalid size name");
+                }
+
+                if (!usedSizes.add(sizeName)) {
+                    throw new IllegalArgumentException(
+                            "Duplicate size: " + sizeName);
+                }
+
+                java.math.BigDecimal sizePrice = sizeRequest.getPrice();
+
+                if (sizePrice == null ||
+                        sizePrice.signum() < 0) {
+                    throw new IllegalArgumentException(
+                            "Invalid price for " + sizeName);
+                }
+
+                MenuItemSize size = new MenuItemSize();
+                size.setSizeName(sizeName);
+                size.setPrice(sizePrice);
+
+                item.addSize(size);
+
+                if (lowestPrice == null ||
+                        sizePrice.compareTo(lowestPrice) < 0) {
+                    lowestPrice = sizePrice;
+                }
+            }
+
+            // Base price = lowest selected size price
+            item.setPrice(lowestPrice);
+
+        } else {
+
+            // Normal menu item with a standard price
+            item.setPrice(request.getPrice());
+        }
+
         return item;
     }
+
 
     @ExceptionHandler(NoSuchElementException.class)
     public ResponseEntity<Map<String, String>> handleNotFound(

@@ -5,6 +5,7 @@ import com.foodie.dto.OrderItemResponse;
 import com.foodie.dto.OrderResponse;
 import com.foodie.dto.MerchantDashboardResponse;
 import com.foodie.dto.MerchantPerformanceResponse;
+import com.foodie.dto.TopSellingItemResponse;
 import com.foodie.model.Merchant;
 import com.foodie.repository.MerchantRepository;
 import com.foodie.service.OrderService;
@@ -162,5 +163,15 @@ public class OrderController {
                 merchantId, restaurantId, days);
     }
 
+    @GetMapping("/top-selling")
+    public List<TopSellingItemResponse> getTopSellingItems(
+            @PathVariable Long restaurantId,
+            Authentication authentication) {
+
+        Long merchantId = getMerchantId(authentication);
+
+        return orderService.getTopSellingItems(
+                merchantId, restaurantId);
+    }
 
 }
