@@ -1,9 +1,9 @@
-
 package com.foodie.repository;
 
 import com.foodie.model.Merchant;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface MerchantRepository extends JpaRepository<Merchant, Long> {
@@ -13,4 +13,8 @@ public interface MerchantRepository extends JpaRepository<Merchant, Long> {
     boolean existsByNationalId(String nationalId);
 
     Optional<Merchant> findByEmail(String email);
+
+    List<Merchant> findByVerificationStatus(
+            Merchant.VerificationStatus verificationStatus
+    );
 }

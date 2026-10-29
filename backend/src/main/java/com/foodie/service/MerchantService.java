@@ -1,4 +1,3 @@
-
 package com.foodie.service;
 
 import com.foodie.dto.MerchantRegistrationRequest;
@@ -66,7 +65,15 @@ public class MerchantService {
 
         restaurant.setRestaurantName(request.getRestaurantName());
         restaurant.setRestaurantAddress(request.getRestaurantAddress());
-        restaurant.setRestaurantPhone(request.getRestaurantPhone());
+
+        // Normalize Sri Lankan phone number to +94 format
+        String phone = request.getRestaurantPhone();
+
+        if (phone.startsWith("0")) {
+            phone = "+94" + phone.substring(1);
+        }
+
+        restaurant.setRestaurantPhone(phone);
 
         // Link restaurant to merchant
         restaurant.setMerchant(savedMerchant);

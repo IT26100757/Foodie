@@ -1,8 +1,8 @@
-
 package com.foodie.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public class MerchantRegistrationRequest {
@@ -28,7 +28,11 @@ public class MerchantRegistrationRequest {
     @NotBlank
     private String restaurantAddress;
 
-    @NotBlank
+    @NotBlank(message = "Restaurant phone number is required")
+    @Pattern(
+            regexp = "^(?:0[1-9][0-9]{8}|\\+94[1-9][0-9]{8})$",
+            message = "Enter a valid Sri Lankan phone number (07XXXXXXXX, 011XXXXXXX, or +94 format)"
+    )
     private String restaurantPhone;
 
     // Account security

@@ -26,3 +26,5 @@ Thumbs.db
 
 # IntelliJ compiler output
 out/
+# Local persistent demo wallet database
+/backend/data/
