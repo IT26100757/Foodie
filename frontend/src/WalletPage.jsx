@@ -20,7 +20,15 @@ const moneyWithCents = (value) => `Rs. ${Math.abs(Number(value)).toLocaleString(
 
 function WalletPage({ orders = [] }) {
   const [accounts, setAccounts] = useState([])
-  const [transactions, setTransactions] = useState([])
+  const [transferTransactions, setTransferTransactions] = useState([])
+  const [earningTransactions, setEarningTransactions] = useState([])
+  const [recordedEarnings, setRecordedEarnings] = useState(null)
+  const [earningsError, setEarningsError] = useState('')
+  const transactions = useMemo(() =>
+          [...transferTransactions, ...earningTransactions]
+              .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)),
+      [transferTransactions, earningTransactions]
+  )
   const [dialog, setDialog] = useState('')
   const [reportsOpen, setReportsOpen] = useState(false)
   const [notice, setNotice] = useState('')
@@ -187,9 +195,10 @@ function WalletPage({ orders = [] }) {
 
         if (cancelled || !Array.isArray(items)) return
 
-        setTransactions(
+        setTransferTransactions(
             items.map((item) => ({
               id: item.transactionId,
+              timestamp: Date.parse(item.updatedAt) || 0,
               title: `Transfer to ${item.bankName}`,
               date: new Intl.DateTimeFormat('en-LK', {
                 dateStyle: 'medium',
@@ -218,6 +227,47 @@ function WalletPage({ orders = [] }) {
       cancelled = true
     }
   }, [])
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadRecordedEarnings() {
+      try {
+        const response = await fetch('/api/wallet/earnings', {
+          credentials: 'include',
+        })
+        if (!response.ok) throw new Error('Unable to load recorded earnings.')
+        const data = await response.json()
+        if (!Array.isArray(data.transactions)) {
+          throw new Error('Invalid earnings response.')
+        }
+        if (cancelled) return
+
+        setRecordedEarnings(Number(data.recordedEarnings) || 0)
+        setEarningsError('')
+        setEarningTransactions(data.transactions.map((entry) => ({
+          id: `earning-${entry.id}`,
+          timestamp: Date.parse(entry.createdAt) || 0,
+          title: `Recorded earning · Order #${entry.orderId}`,
+          date: entry.createdAt
+              ? new Intl.DateTimeFormat('en-LK', { dateStyle: 'medium' }).format(new Date(entry.createdAt))
+              : '—',
+          kind: 'Earning',
+          amount: Number(entry.amount) || 0,
+          status: 'Recorded',
+          currency: entry.currency || data.currency || 'LKR',
+        })))
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Recorded earnings:', error)
+          setEarningsError('Recorded earnings could not be loaded.')
+        }
+      }
+    }
+
+    loadRecordedEarnings()
+    return () => { cancelled = true }
+  }, [])
+
   const showNotice = (message) => { setNotice(message); window.setTimeout(() => setNotice(''), 4200) }
   function openAccountDialog() {
     setAccountForm({
@@ -494,7 +544,10 @@ function WalletPage({ orders = [] }) {
         currency: result.currency,
       }
 
-      setTransactions((current) => [record, ...current])
+      setTransferTransactions((current) => [
+        { ...record, timestamp: Date.parse(result.updatedAt) || Date.now() },
+        ...current,
+      ])
 
       setTransferAmount('')
 
@@ -670,7 +723,8 @@ function WalletPage({ orders = [] }) {
           )}
 
         </section>
-        <section className="dashboard-card wallet-transactions-card" id="wallet-transactions"><div className="wallet-card-heading"><div><span className="wallet-section-kicker">YOUR WALLET ACTIVITY</span><h2>Recent Transactions</h2></div></div>
+        <section className="dashboard-card wallet-transactions-card" id="wallet-transactions"><div className="wallet-card-heading"><div><span className="wallet-section-kicker">YOUR WALLET ACTIVITY</span><h2>Recent Transactions</h2>{recordedEarnings !== null && <small>Recorded payment earnings: {moneyWithCents(recordedEarnings)} · Not available for transfer</small>}</div></div>
+          {earningsError && <small role="alert" className="wallet-field-error">{earningsError}</small>}
           {transactions.length ? <div className="wallet-table-wrap"><table className="wallet-table"><thead><tr><th>TRANSACTION</th><th>DATE</th><th>TYPE</th><th>AMOUNT</th><th>STATUS</th></tr></thead><tbody>{transactions.map((item) => <tr key={item.id}><td><span className={`wallet-transaction-mark ${item.amount < 0 ? 'charge-mark' : ''}`}>{item.amount < 0 ? '−' : '+'}</span><span className="wallet-transaction-name"><b>{item.title}</b><small>{item.id}</small></span></td><td>{item.date}</td><td>{item.kind}</td><td className={item.amount < 0 ? 'negative-amount' : 'positive-amount'}>{item.amount < 0 ? '−' : '+'} {money(item.amount)}</td><td><span className={`wallet-status ${item.status === 'Completed' ? 'complete' : 'deducted'}`}><i />{item.status}</span></td></tr>)}</tbody></table></div> : <div className="wallet-chart-empty">No transactions found.</div>}
         </section>
       </div>
