@@ -1,16 +1,19 @@
-# React + Vite
+# Foodie Driver frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React and Vite frontend for the Foodie driver portal.
 
-Currently, two official plugins are available:
+## Run locally
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+From this folder, install dependencies with `npm install`, then start the app with `npm run dev`. The frontend expects an authenticated driver API at the same origin. Browser location access requires the driver's permission and a secure origin or localhost.
 
-## React Compiler
+## Server integration
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Driver sign-in, registration, password reset, profile updates, vehicle review, availability, delivery offers, notifications, earnings, bank accounts, payouts, and complaints require server endpoints. The frontend only shows account or activity data returned by the server; unavailable services show an error or empty state. It does not create example drivers, orders, earnings, notifications, complaints, or bank accounts.
 
-## Expanding the ESLint configuration
+The map needs a configured map tile and routing provider to show a live map and routes. Browser geolocation alone only provides the device coordinates.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Commands
+
+- `npm run dev` — local development
+- `npm run build` — production bundle
+- `npm run lint` — ESLint
