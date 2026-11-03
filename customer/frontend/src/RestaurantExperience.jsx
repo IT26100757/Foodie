@@ -1,0 +1,113 @@
+import { useState } from 'react'
+import './RestaurantExperience.css'
+
+// Temporary customer-side fixtures shaped like merchant menu records.
+// Replace this module's fixtures with the merchant API response when it is ready.
+const sampleMenu = {
+  'burger-house': [
+    { id: 'burger-house-classic', name: 'Classic House Burger', category: 'Burgers', price: 850, description: 'A flame-grilled beef patty with cheddar, crisp lettuce, tomato, pickles and our house sauce in a toasted brioche bun.', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=1000&q=85', rating: 4.8, variants: [{ name: 'Patty', required: true, options: [{ name: 'Single', price: 0 }, { name: 'Double', price: 380 }] }], addOns: [{ name: 'Extra cheddar', price: 120 }, { name: 'Bacon', price: 220 }, { name: 'French fries', price: 250 }] },
+    { id: 'burger-house-crispy', name: 'Crispy Chicken Burger', category: 'Burgers', price: 790, description: 'Crunchy seasoned chicken, slaw and tangy mayo with a little kick.', image: 'https://images.unsplash.com/photo-1606755962773-d324e0a13086?auto=format&fit=crop&w=1000&q=85', rating: 4.7, variants: [{ name: 'Spice level', required: true, options: [{ name: 'Mild', price: 0 }, { name: 'Hot', price: 0 }] }], addOns: [{ name: 'Extra chicken', price: 300 }, { name: 'Cheese', price: 120 }] },
+    { id: 'burger-house-fries', name: 'Loaded House Fries', category: 'Sides', price: 420, description: 'Golden fries topped with house cheese sauce, spring onion and smoky seasoning.', image: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?auto=format&fit=crop&w=1000&q=85', rating: 4.6, variants: [], addOns: [{ name: 'Cheese sauce', price: 100 }, { name: 'Jalapeños', price: 80 }] },
+  ],
+  'pizza-palace': [
+    { id: 'pizza-palace-margherita', name: 'Margherita Pizza', category: 'Pizza', price: 950, description: 'Stone-baked pizza with ripe tomato, mozzarella, fresh basil and extra virgin olive oil.', image: 'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&w=1000&q=85', rating: 4.8, variants: [{ name: 'Size', required: true, options: [{ name: 'Regular (9")', price: 0 }, { name: 'Large (12")', price: 550 }, { name: 'Family (15")', price: 1100 }] }, { name: 'Crust', required: true, options: [{ name: 'Classic', price: 0 }, { name: 'Thin & crispy', price: 0 }, { name: 'Cheese stuffed', price: 300 }] }], addOns: [{ name: 'Extra mozzarella', price: 180 }, { name: 'Olives', price: 100 }, { name: 'Mushrooms', price: 120 }, { name: 'Pepperoni', price: 250 }] },
+    { id: 'pizza-palace-pepperoni', name: 'Pepperoni Feast', category: 'Pizza', price: 1250, description: 'A generous layer of mozzarella and pepperoni over our slow-simmered tomato sauce.', image: 'https://images.unsplash.com/photo-1628840042765-356cda07504e?auto=format&fit=crop&w=1000&q=85', rating: 4.9, variants: [{ name: 'Size', required: true, options: [{ name: 'Regular (9")', price: 0 }, { name: 'Large (12")', price: 600 }, { name: 'Family (15")', price: 1200 }] }, { name: 'Crust', required: true, options: [{ name: 'Classic', price: 0 }, { name: 'Thin & crispy', price: 0 }, { name: 'Cheese stuffed', price: 300 }] }], addOns: [{ name: 'Extra mozzarella', price: 180 }, { name: 'Jalapeños', price: 100 }] },
+    { id: 'pizza-palace-garlic', name: 'Garlic Bread', category: 'Sides', price: 390, description: 'Warm oven-baked bread brushed with garlic butter and herbs.', image: 'https://images.unsplash.com/photo-1619531040576-f94167406615?auto=format&fit=crop&w=1000&q=85', rating: 4.6, variants: [], addOns: [{ name: 'Mozzarella', price: 130 }] },
+  ],
+  'curry-corner': [
+    { id: 'curry-corner-rice', name: 'Chicken Rice & Curry', category: 'Rice & Curry', price: 900, description: 'Steamed rice with spiced chicken curry, dhal, seasonal vegetables, papadum and sambol.', image: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?auto=format&fit=crop&w=1000&q=85', rating: 4.7, variants: [{ name: 'Portion', required: true, options: [{ name: 'Regular', price: 0 }, { name: 'Large', price: 350 }] }], addOns: [{ name: 'Extra chicken', price: 320 }, { name: 'Egg', price: 100 }, { name: 'Extra sambol', price: 60 }] },
+    { id: 'curry-corner-kottu', name: 'Chicken Kottu', category: 'Kottu', price: 850, description: 'Chopped roti stir-fried on the hot plate with chicken, egg and vegetables.', image: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=1000&q=85', rating: 4.6, variants: [{ name: 'Spice level', required: true, options: [{ name: 'Mild', price: 0 }, { name: 'Medium', price: 0 }, { name: 'Hot', price: 0 }] }], addOns: [{ name: 'Extra cheese', price: 180 }, { name: 'Extra chicken', price: 300 }] },
+  ],
+  'green-bowl-cafe': [
+    { id: 'green-bowl-salad', name: 'Garden Salad Bowl', category: 'Bowls', price: 760, description: 'A fresh bowl of greens, avocado, cucumber, cherry tomatoes, seeds and lemon herb dressing.', image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=1000&q=85', rating: 4.8, variants: [{ name: 'Protein', required: true, options: [{ name: 'Garden (no protein)', price: 0 }, { name: 'Grilled chicken', price: 350 }, { name: 'Tofu', price: 220 }] }], addOns: [{ name: 'Avocado', price: 180 }, { name: 'Extra dressing', price: 70 }] },
+    { id: 'green-bowl-smoothie', name: 'Mango Green Smoothie', category: 'Beverages', price: 480, description: 'Mango, baby spinach, banana and oat milk blended until creamy.', image: 'https://images.unsplash.com/photo-1505252585461-04db1eb84625?auto=format&fit=crop&w=1000&q=85', rating: 4.7, variants: [{ name: 'Size', required: true, options: [{ name: 'Regular', price: 0 }, { name: 'Large', price: 140 }] }], addOns: [{ name: 'Chia seeds', price: 70 }] },
+  ],
+  'sweet-corner': [
+    { id: 'sweet-corner-cake', name: 'Chocolate Fudge Cake', category: 'Desserts', price: 650, description: 'Rich chocolate sponge layered with silky fudge ganache and finished with chocolate curls.', image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1000&q=85', rating: 4.9, variants: [{ name: 'Portion', required: true, options: [{ name: 'Slice', price: 0 }, { name: 'Two slices', price: 580 }] }], addOns: [{ name: 'Vanilla ice cream', price: 180 }, { name: 'Extra ganache', price: 90 }] },
+    { id: 'sweet-corner-tart', name: 'Strawberry Tart', category: 'Desserts', price: 520, description: 'Buttery pastry filled with vanilla custard and fresh strawberries.', image: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=1000&q=85', rating: 4.7, variants: [], addOns: [{ name: 'Whipped cream', price: 100 }] },
+  ],
+}
+
+const money = (amount) => `Rs. ${Number(amount || 0).toLocaleString('en-LK')}`
+const itemBasePrice = (item) => {
+  const sizes = item.sizesEnabled && item.sizes ? Object.values(item.sizes).filter((size) => size.selected).map((size) => Number(size.price)).filter(Number.isFinite) : []
+  return sizes.length ? Math.min(...sizes) : Number(item.price) || 0
+}
+const merchantVariants = (item) => {
+  if (Array.isArray(item.variants)) return item.variants
+  if (item.sizesEnabled && item.sizes) {
+    const sizes = Object.entries(item.sizes).filter(([, value]) => value.selected)
+    const basePrice = sizes.length ? Math.min(...sizes.map(([, value]) => Number(value.price) || 0)) : 0
+    return [{ name: 'Size', required: true, options: sizes.map(([name, value]) => ({ name, price: Math.max(0, (Number(value.price) || 0) - basePrice) })) }]
+  }
+  return []
+}
+const merchantAddOns = (item) => item.addOns || item.addons || []
+
+function adaptMerchantItem(item, index, restaurantName) {
+  const variants = merchantVariants(item)
+  const addOns = merchantAddOns(item)
+  return { ...item, id: `merchant:${item.id ?? index}`, name: item.name || 'Menu item', description: item.description || '', image: item.image || item.imageUrl || '', category: item.category || 'Popular', price: itemBasePrice(item), rating: item.rating, variants, addOns, restaurant: item.restaurant || item.merchantName || restaurantName }
+}
+
+function ItemDetail({ item, restaurant, onClose, onAdd }) {
+  const [variantChoice, setVariantChoice] = useState(() => Object.fromEntries(item.variants.map((variant) => [variant.name, variant.options[0]?.name || ''])))
+  const [selectedAddOns, setSelectedAddOns] = useState([])
+  const [quantity, setQuantity] = useState(1)
+  const [notice, setNotice] = useState('')
+  const optionsPrice = item.variants.reduce((sum, variant) => sum + Number(variant.options.find((option) => option.name === variantChoice[variant.name])?.price || 0), 0)
+  const addOnsPrice = item.addOns.filter((addOn) => selectedAddOns.includes(addOn.name)).reduce((sum, addOn) => sum + Number(addOn.price || 0), 0)
+  const unitPrice = item.price + optionsPrice + addOnsPrice
+
+  function submit() {
+    const missing = item.variants.find((variant) => variant.required && !variantChoice[variant.name])
+    if (missing) { setNotice(`Please select ${missing.name.toLowerCase()}.`); return }
+    onAdd({ id: `${item.id}:${JSON.stringify([variantChoice, [...selectedAddOns].sort()])}`, name: item.name, restaurant: restaurant.name, image: item.image, price: unitPrice, quantity, variants: variantChoice, addOns: item.addOns.filter((addOn) => selectedAddOns.includes(addOn.name)).map((addOn) => addOn.name), specialInstructions: '' })
+    onClose()
+  }
+
+  return <div className="experience-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}><section className="item-dialog" role="dialog" aria-modal="true" aria-labelledby="item-detail-title">
+    <button className="experience-close" type="button" aria-label="Close item details" onClick={onClose}>×</button>
+    <img className="item-dialog-image" src={item.image} alt={item.name} />
+    <div className="item-dialog-content"><div className="item-dialog-heading"><span>{item.category} · {restaurant.name}</span><h2 id="item-detail-title">{item.name}</h2><div><b>★ {Number(item.rating || restaurant.rating.split(' ')[0]).toFixed(1)}</b><strong>{money(item.price)}</strong></div></div>
+      <p className="item-description">{item.description || 'Freshly prepared by the restaurant using quality ingredients.'}</p>
+      {item.variants.map((variant) => <fieldset className="choice-group" key={variant.name}><legend>{variant.name} {variant.required && <small>Required</small>}</legend>{variant.options.map((option) => <label className="choice-option" key={option.name}><span><input type="radio" name={`${item.id}-${variant.name}`} checked={variantChoice[variant.name] === option.name} onChange={() => setVariantChoice((choices) => ({ ...choices, [variant.name]: option.name }))} /><b>{option.name}</b></span><strong>{Number(option.price) ? `+ ${money(option.price)}` : 'Included'}</strong></label>)}</fieldset>)}
+      {!!item.addOns.length && <fieldset className="choice-group"><legend>Add-ons <small>Optional</small></legend>{item.addOns.map((addOn) => <label className="choice-option" key={addOn.name}><span><input type="checkbox" checked={selectedAddOns.includes(addOn.name)} onChange={() => setSelectedAddOns((values) => values.includes(addOn.name) ? values.filter((value) => value !== addOn.name) : [...values, addOn.name])} /><b>{addOn.name}</b></span><strong>+ {money(addOn.price)}</strong></label>)}</fieldset>}
+      <div className="detail-footer"><div className="quantity-control"><button type="button" aria-label="Decrease quantity" onClick={() => setQuantity((value) => Math.max(1, value - 1))}>−</button><span>{quantity}</span><button type="button" aria-label="Increase quantity" onClick={() => setQuantity((value) => value + 1)}>＋</button></div><button type="button" className="add-cart-button" onClick={submit}>Add to Cart <b>{money(unitPrice * quantity)}</b></button></div>{notice && <p className="item-notice" role="alert">{notice}</p>}
+    </div>
+  </section></div>
+}
+
+export default function RestaurantExperience({ restaurant, merchantItems = [], cart, setCart, onCheckout = () => {} }) {
+  const [selectedItem, setSelectedItem] = useState(null)
+  const [tab, setTab] = useState('Menu')
+  const [query, setQuery] = useState('')
+  const [category, setCategory] = useState('All')
+  const [coupon, setCoupon] = useState('')
+  const [couponApplied, setCouponApplied] = useState(false)
+  const [couponMessage, setCouponMessage] = useState('')
+  const [instructions, setInstructions] = useState({})
+  const sample = import.meta.env.DEV ? (sampleMenu[restaurant.slug] || [{ id: `${restaurant.slug}-favourite`, name: ({ 'Noodle Express': 'Chicken Chow Mein', 'Coastal Bites': 'Grilled Fish Rice', 'Spice Route': 'Chicken Biryani', 'Kottu House': 'Cheese Chicken Kottu', 'Brew & Bites': 'Iced Coffee' })[restaurant.name] || `House favourite at ${restaurant.name}`, category: 'Popular', price: 750, description: `A freshly prepared customer favourite from ${restaurant.name}, made with the restaurant’s signature seasoning and quality ingredients.`, image: 'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1000&q=85', rating: Number(restaurant.rating.split(' ')[0]), variants: [{ name: 'Portion', required: true, options: [{ name: 'Regular', price: 0 }, { name: 'Large', price: 280 }] }, { name: 'Spice level', required: true, options: [{ name: 'Mild', price: 0 }, { name: 'Hot', price: 0 }] }], addOns: [{ name: 'Extra protein', price: 250 }, { name: 'Fresh lime', price: 60 }] }]) : []
+  const own = merchantItems.filter((item) => String(item.restaurantId ?? item.merchantId ?? item.restaurant ?? item.merchantName ?? item.restaurantName ?? '').toLowerCase() === String(restaurant.id ?? restaurant.name).toLowerCase() || String(item.restaurant ?? item.merchantName ?? item.restaurantName ?? '').toLowerCase() === restaurant.name.toLowerCase())
+  const restaurantItems = (own.length ? own.map((item, index) => adaptMerchantItem(item, index, restaurant.name)) : sample).filter((item) => item.available !== false)
+  const categories = ['All', ...new Set(restaurantItems.map((item) => item.category || 'Popular'))]
+  const visibleItems = restaurantItems.filter((item) => (category === 'All' || item.category === category) && `${item.name} ${item.description} ${item.category}`.toLowerCase().includes(query.toLowerCase()))
+  const count = cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
+  const subtotal = cart.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0)
+  const deliveryFee = 150
+  const discount = couponApplied ? Math.min(250, subtotal) : 0
+  const money = (value) => `Rs. ${Number(value || 0).toLocaleString('en-LK')}`
+
+  function addItem(item) {
+    setCart((items) => {
+      const match = items.find((existing) => existing.id === item.id)
+      return match ? items.map((existing) => existing.id === item.id ? { ...existing, quantity: existing.quantity + item.quantity } : existing) : [...items, item]
+    })
+  }
+  function changeQuantity(id, delta) { setCart((items) => items.map((item) => item.id === id ? { ...item, quantity: item.quantity + delta } : item).filter((item) => item.quantity > 0)) }
+  const isCartPage = window.location.pathname === '/cart'
+
+  if (isCartPage) return <section className="standalone-page experience-page cart-page"><a className="store-back" href="/home">← Continue shopping</a><div className="page-heading"><span>YOUR ORDER</span><h1>Your <em>Cart.</em></h1><p>Review your dishes, choices and delivery total.</p></div>{cart.length ? <div className="cart-page-layout"><div className="cart-page-lines">{cart.map((item) => <article className="cart-page-item" key={item.id}><img src={item.image || 'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=240&q=80'} alt={item.name} /><div className="cart-page-item-copy"><small>{item.restaurant}</small><h2>{item.name}</h2>{Object.entries(item.variants || {}).map(([name, value]) => <p key={name}>{name}: {value}</p>)}{!!item.addOns?.length && <p>Add-ons: {item.addOns.join(', ')}</p>}<label className="special-instructions">Special instructions<textarea value={instructions[item.id] ?? item.specialInstructions ?? ''} onChange={(event) => { setInstructions((values) => ({ ...values, [item.id]: event.target.value })); setCart((items) => items.map((entry) => entry.id === item.id ? { ...entry, specialInstructions: event.target.value } : entry)) }} placeholder="Anything we should know? (optional)" maxLength={240} /></label><div className="cart-line-actions"><div className="quantity-control"><button type="button" aria-label={`Decrease ${item.name}`} onClick={() => changeQuantity(item.id, -1)}>−</button><span>{item.quantity}</span><button type="button" aria-label={`Increase ${item.name}`} onClick={() => changeQuantity(item.id, 1)}>＋</button></div><button className="remove-cart-item" type="button" onClick={() => setCart((items) => items.filter((entry) => entry.id !== item.id))}>Remove</button><strong>{money(item.price * item.quantity)}</strong></div></div></article>)}</div><aside className="order-summary"><h2>Order Summary</h2><label className="coupon-row"><input value={coupon} onChange={(event) => { setCoupon(event.target.value); setCouponMessage('') }} placeholder="Enter coupon code" /><button type="button" onClick={() => { if (coupon.trim().toUpperCase() === 'FOODIE250') { setCouponApplied(true); setCouponMessage('Rs. 250 discount applied.') } else setCouponMessage('Enter FOODIE250 to apply this sample offer.') }}>Apply</button></label>{couponMessage && <p className="coupon-message" role="status">{couponMessage}</p>}<div className="summary-row"><span>Items subtotal</span><b>{money(subtotal)}</b></div><div className="summary-row"><span>Delivery fee</span><b>{money(deliveryFee)}</b></div>{discount > 0 && <div className="summary-row discount-row"><span>Discount</span><b>− {money(discount)}</b></div>}<div className="summary-total"><strong>Total</strong><strong>{money(subtotal + deliveryFee - discount)}</strong></div><button type="button" className="checkout-page-button" onClick={() => onCheckout(couponApplied ? { code: coupon.trim().toUpperCase(), discount } : null)}>Proceed to Checkout <b>→</b></button><small>Delivery and checkout are sample customer-side values.</small></aside></div> : <div className="cart-page-empty"><span>🛍️</span><h2>Your cart is waiting</h2><p>Choose a restaurant and add something delicious.</p><a className="primary-cta" href="/home">Explore featured restaurants <b>→</b></a></div>}</section>
+
+  return <section className="standalone-page experience-page restaurant-page"><a className="store-back" href="/home">← Back to Foodie</a><div className="restaurant-cover" style={{ backgroundImage: `linear-gradient(90deg,#18140c99,#18140c0a),url("${restaurant.bannerImage || (import.meta.env.DEV ? 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1800&q=85' : '')}")` }}><div className="restaurant-cover-mark"><span>{restaurant.logoImage ? <img src={restaurant.logoImage} alt="" /> : restaurant.icon}</span></div><div className="restaurant-cover-copy"><small>GOOD FOOD, CLOSE TO HOME</small><h1>{restaurant.name}</h1><p>{restaurant.type}</p></div></div><div className="restaurant-overview"><div className="overview-fact"><b>★ {restaurant.rating}</b><span>Customer rating</span></div><div className="overview-fact"><b>◷ {restaurant.time}</b><span>Delivery estimate</span></div><div className="overview-fact"><b>🛵 {restaurant.price}</b><span>Delivery fee</span></div><div className="restaurant-open"><i /> Open now</div>{count > 0 && <a className="store-cart-link" href="/cart">View cart <span>{count}</span> · {money(subtotal)} →</a>}</div><div className="restaurant-tabs" role="tablist" aria-label={`${restaurant.name} information`}>{['Menu', 'Reviews', 'About'].map((label) => <button type="button" role="tab" aria-selected={tab === label} className={tab === label ? 'active' : ''} key={label} onClick={() => setTab(label)}>{label}</button>)}</div>{tab === 'Menu' ? <div className="restaurant-menu-layout"><aside className="menu-categories"><h2>Menu</h2>{categories.map((name) => <button className={category === name ? 'active' : ''} type="button" key={name} onClick={() => setCategory(name)}>{name}<span>{name === 'All' ? restaurantItems.length : restaurantItems.filter((item) => item.category === name).length}</span></button>)}</aside><div className="restaurant-menu-content"><div className="menu-search"><span>⌕</span><input aria-label="Search menu" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${restaurant.name} menu`} /></div><h2>{category === 'All' ? 'Popular right now' : category}<small>{visibleItems.length} items</small></h2>{visibleItems.length ? <div className="restaurant-menu-list">{visibleItems.map((item) => <article className="restaurant-menu-card" key={item.id} onClick={() => setSelectedItem(item)}><img src={item.image || 'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=500&q=80'} alt={item.name} /><div className="restaurant-menu-copy"><small>{item.category} {item.rating ? `· ★ ${Number(item.rating).toFixed(1)}` : ''}</small><h3>{item.name}</h3><p>{item.description}</p><strong>{money(item.price)}{item.variants?.length ? <small> · options available</small> : null}</strong></div><button type="button" aria-label={`Customize ${item.name}`} onClick={(event) => { event.stopPropagation(); setSelectedItem(item) }}>＋</button></article>)}</div> : <p className="menu-empty">No menu items match your search.</p>}</div></div> : tab === 'Reviews' ? <section className="store-info-panel"><h2>Customer reviews</h2><p><b>★ {restaurant.rating}</b> based on recent customer ratings.</p><article>“Fresh, full of flavour and delivered right on time. I’ll definitely order again.”<small>Recent Foodie customer · ★★★★★</small></article><article>“Great portions and friendly service. A lovely local favourite.”<small>Recent Foodie customer · ★★★★★</small></article></section> : <section className="store-info-panel"><h2>About {restaurant.name}</h2><p>{restaurant.name} serves {restaurant.type.toLowerCase()} favourites, freshly prepared for your neighbourhood.</p><p><b>Delivery estimate</b> · {restaurant.time}<br /><b>Delivery fee</b> · {restaurant.price}<br /><b>Hours</b> · Open now</p>{restaurant.marketingOffer && <p className="restaurant-offer-note">✦ {restaurant.marketingOffer}</p>}</section>}{selectedItem && <ItemDetail item={selectedItem} restaurant={restaurant} onClose={() => setSelectedItem(null)} onAdd={addItem} />}</section>
+}
