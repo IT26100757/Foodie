@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -149,7 +150,8 @@ public class RestaurantController {
                 Objects.requireNonNullElse(restaurant.getRestaurantAddress(), ""),
                 restaurant.getRestaurantPhone(),
                 String.join(" · ", categories),
-                categories
+                categories,
+                CartController.DELIVERY_FEE
         );
     }
 
@@ -164,7 +166,9 @@ public class RestaurantController {
             String address,
             String phone,
             String type,
-            List<String> categories
+            List<String> categories,
+            // Shown on the restaurant card as "Rs. 150"; same fee CartController charges.
+            BigDecimal deliveryFee
     ) {
     }
 }

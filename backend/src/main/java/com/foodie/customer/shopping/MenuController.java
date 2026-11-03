@@ -105,6 +105,7 @@ public class MenuController {
                 item.getId(),
                 restaurant.getId(),
                 restaurant.getRestaurantName(),
+                restaurant.getRestaurantName(),
                 item.getName(),
                 item.getDescription(),
                 item.getPrice(),
@@ -124,6 +125,8 @@ public class MenuController {
             Long id,
             Long restaurantId,
             String restaurantName,
+            // Same as restaurantName; the React dish cards and cart read "restaurant".
+            String restaurant,
             String name,
             String description,
             BigDecimal price,
